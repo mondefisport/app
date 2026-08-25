@@ -41,14 +41,7 @@ function Onboarding({ user, onComplete }) {
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState('');
 
-  const objectifs = [
-    { id: 'stress', label: 'Réduire mon stress', emoji: '🌊' },
-    { id: 'sommeil', label: 'Mieux dormir', emoji: '🌙' },
-    { id: 'energie', label: 'Gagner en énergie', emoji: '⚡' },
-    { id: 'souplesse', label: 'Améliorer ma souplesse', emoji: '🤸' },
-    { id: 'centrage', label: 'Me recentrer', emoji: '🪷' },
-    { id: 'general', label: 'Bien-être général', emoji: '✨' },
-  ];
+  const objectifs = VOCAB.objectifs.liste;
 
   const sauvegarder = async (e) => {
     e.preventDefault();
@@ -1790,14 +1783,7 @@ function ModaleProfil({ profil, onClose, onSave, utilisateur }) {
   const [objectif, setObjectif] = useState(profil?.objectif || '');
   const [erreur, setErreur] = useState('');
 
-  const objectifs = [
-    { id: 'stress', label: 'Réduire mon stress', icone: '🌊' },
-    { id: 'sommeil', label: 'Mieux dormir', icone: '🌙' },
-    { id: 'energie', label: "Retrouver de l'énergie", icone: '☀️' },
-    { id: 'souplesse', label: 'Gagner en souplesse', icone: '🌿' },
-    { id: 'centrage', label: 'Me recentrer', icone: '🪷' },
-    { id: 'decouvrir', label: 'Simplement découvrir', icone: '✨' },
-  ];
+  const objectifs = VOCAB.objectifs.liste;
 
   const valider = () => {
     if (!prenom.trim()) {
@@ -2647,14 +2633,7 @@ function MaSeance({ postures, setSeanceActive, profil, aAccesComplet, onUnlock }
   const [seanceGeneree, setSeanceGeneree] = useState(null);
 
   // Liste des objectifs avec leurs icônes
-  const objectifs = [
-    { id: 'stress', label: 'Réduire mon stress', icone: '🌊' },
-    { id: 'sommeil', label: 'Mieux dormir', icone: '🌙' },
-    { id: 'energie', label: "Retrouver de l'énergie", icone: '☀️' },
-    { id: 'souplesse', label: 'Gagner en souplesse', icone: '🌿' },
-    { id: 'centrage', label: 'Me recentrer', icone: '🪷' },
-    { id: 'decouvrir', label: 'Simplement découvrir', icone: '✨' },
-  ];
+  const objectifs = VOCAB.objectifs.liste;
 
   // Liste des durées
   const durees = [5, 10, 15, 20, 30];

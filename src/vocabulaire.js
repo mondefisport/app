@@ -37,7 +37,18 @@ export const VOCAB = {
 
   objectifs: {
     label: 'Objectifs',
-    exemples: ['Renforcement', 'Souplesse', 'Équilibre', 'Coordination', 'Respiration'],
+    exemples: ['Renforcement', 'Cardio', 'Mobilité', 'Gainage', 'Forme générale'],
+    // Liste structurée utilisée par les écrans de sélection d'objectifs
+    // (onboarding, profil, générateur "Créer ma séance"). Les id doivent
+    // correspondre aux tags présents dans la colonne objectifs de la
+    // table postures, pour que le filtrage fonctionne (voir Annexe 34).
+    liste: [
+      { id: 'renforcement', label: 'Me renforcer', icone: '💪', emoji: '💪' },
+      { id: 'cardio', label: 'Travailler mon cardio', icone: '❤️', emoji: '❤️' },
+      { id: 'mobilite', label: 'Gagner en mobilité', icone: '🧘', emoji: '🧘' },
+      { id: 'gainage', label: 'Renforcer mon gainage', icone: '🔥', emoji: '🔥' },
+      { id: 'general', label: 'Forme générale', icone: '✨', emoji: '✨' },
+    ],
   },
 
   navigation: {
