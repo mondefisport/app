@@ -20,18 +20,7 @@ const TOUS_LES_CHAKRAS = [
 ];
 
 // Les 10 catégories de bénéfices PlayPauseBe
-const CATEGORIES_BIENFAITS = [
-  { tag: 'poumons',     emoji: '🫁',  label: 'Poumons' },
-  { tag: 'coeur',       emoji: '❤️',  label: 'Cœur' },
-  { tag: 'digestif',    emoji: '🌀',  label: 'Digestif' },
-  { tag: 'force',       emoji: '💪',  label: 'Force' },
-  { tag: 'souplesse',   emoji: '🤸',  label: 'Souplesse' },
-  { tag: 'mental',      emoji: '🧠',  label: 'Mental' },
-  { tag: 'immunitaire', emoji: '🛡️',  label: 'Immunitaire' },
-  { tag: 'organes',     emoji: '⚖️',  label: 'Organes' },
-  { tag: 'posture',     emoji: '🧘',  label: VOCAB.posture.singulier },
-  { tag: 'sommeil',     emoji: '🌙',  label: 'Sommeil' },
-];
+const CATEGORIES_BIENFAITS = VOCAB.categoriesVerso;
 
 // Composant Onboarding (première connexion)
 function Onboarding({ user, onComplete }) {

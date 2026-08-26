@@ -51,6 +51,25 @@ export const VOCAB = {
     ],
   },
 
+  // Grille de catégories affichée au verso de chaque carte (voir
+  // CATEGORIES_BIENFAITS dans App.jsx). Pour le yoga, ce sont des
+  // catégories de bien-être (Poumons, Cœur, Sommeil...) ; pour le
+  // fitness/musculation, ce sont les groupes musculaires travaillés.
+  // Le tag de chaque entrée doit correspondre à un tag présent dans
+  // la colonne bienfaits_tags de la table postures (voir Annexe 35).
+  categoriesVerso: [
+    { tag: 'bras', emoji: '💪', label: 'Bras' },
+    { tag: 'dos', emoji: '🏋️', label: 'Dos' },
+    { tag: 'epaules', emoji: '🤸', label: 'Épaules' },
+    { tag: 'poitrine', emoji: '🎯', label: 'Poitrine' },
+    { tag: 'abdos', emoji: '🔥', label: 'Abdominaux' },
+    { tag: 'jambes', emoji: '🦵', label: 'Jambes' },
+    { tag: 'mollets', emoji: '🦶', label: 'Mollets' },
+    { tag: 'cardio', emoji: '❤️', label: 'Cardio' },
+    { tag: 'mobilite', emoji: '🧘', label: 'Mobilité' },
+    { tag: 'gainage', emoji: '⚖️', label: 'Gainage' },
+  ],
+
   navigation: {
     accueil: 'Accueil',
     maSeance: 'Créer ma séance',
