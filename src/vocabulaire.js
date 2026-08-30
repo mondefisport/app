@@ -59,15 +59,15 @@ export const VOCAB = {
   // la colonne bienfaits_tags de la table postures (voir Annexe 35).
   categoriesVerso: [
     { tag: 'bras', emoji: '💪', label: 'Bras' },
-    { tag: 'dos', emoji: '🏋️', label: 'Dos' },
-    { tag: 'epaules', emoji: '🤸', label: 'Épaules' },
-    { tag: 'poitrine', emoji: '🎯', label: 'Poitrine' },
+    { tag: 'dos', emoji: '🧗', label: 'Dos' },
+    { tag: 'epaules', emoji: '🙆', label: 'Épaules' },
+    { tag: 'poitrine', emoji: '🛡️', label: 'Poitrine' },
     { tag: 'abdos', emoji: '🔥', label: 'Abdominaux' },
     { tag: 'jambes', emoji: '🦵', label: 'Jambes' },
     { tag: 'mollets', emoji: '🦶', label: 'Mollets' },
     { tag: 'cardio', emoji: '❤️', label: 'Cardio' },
     { tag: 'mobilite', emoji: '🧘', label: 'Mobilité' },
-    { tag: 'gainage', emoji: '⚖️', label: 'Gainage' },
+    { tag: 'gainage', emoji: '🧱', label: 'Gainage' },
   ],
 
   navigation: {

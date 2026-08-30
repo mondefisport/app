@@ -2644,7 +2644,10 @@ function MaSeance({ postures, setSeanceActive, profil, aAccesComplet, onUnlock }
 
 const filtreNiveau = (p) => {
       if (niveau === 'premier') {
-        return p.difficulte === 'tous';
+        // ⚠️ Les exercices WorkoutX n'utilisent jamais 'tous' (seulement
+        // 'facile'/'intermediaire') — on accepte donc 'facile' ici aussi,
+        // sinon aucun exercice ne matche jamais pour ce niveau.
+        return p.difficulte === 'tous' || p.difficulte === 'facile';
       }
       if (niveau === 'debutant') {
         return p.difficulte === 'tous' || p.difficulte === 'facile';
