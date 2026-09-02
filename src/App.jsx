@@ -1515,7 +1515,36 @@ if (utilisateur && !chargementProfil && profilUtilisateur === null) {
         <ModaleProfil
           profil={profil}
           onClose={() => setShowProfilModal(false)}
-          onSave={(p) => { setProfil(p); setShowProfilModal(false); }}
+          onSave={async (p) => {
+            // ⚠️ Correctif — cette sauvegarde ne faisait auparavant que
+            // setProfil(p) en local (React state), sans jamais écrire dans
+            // Supabase. Résultat : prénom/objectif/code entreprise étaient
+            // perdus à chaque rechargement de page. On upsert maintenant
+            // réellement dans la table profils, comme le fait Onboarding.
+            const codeEntrepriseActuel = acces?.entreprise || null;
+            const { error } = await supabase
+              .from('profils')
+              .upsert({
+                user_id: utilisateur.id,
+                email: p.email || utilisateur.email,
+                prenom: p.prenom,
+                objectif_principal: p.objectif,
+                code_entreprise: codeEntrepriseActuel,
+              }, { onConflict: 'user_id' });
+
+            if (error) {
+              console.error('Erreur sauvegarde profil:', error);
+            }
+
+            setProfil(p);
+            setProfilUtilisateur({
+              prenom: p.prenom,
+              email: p.email || utilisateur.email,
+              objectif_principal: p.objectif,
+              code_entreprise: codeEntrepriseActuel,
+            });
+            setShowProfilModal(false);
+          }}
           utilisateur={utilisateur}
         />
       )}
