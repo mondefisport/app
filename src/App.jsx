@@ -1265,6 +1265,7 @@ const posturesFormatees = data.map(p => ({
           objectif: p.objectif,
           objectifs: p.objectifs ? p.objectifs.split(',').map(o => o.trim()) : [],
           urlImage: p.url_image,
+          avecMateriel: p.avec_materiel,
           urlAudio: p.url_audio,
           urlVideo: p.url_video,
           createdAt: p.created_at,
@@ -2619,6 +2620,7 @@ function MaSeance({ postures, setSeanceActive, profil, aAccesComplet, onUnlock }
   const [duree, setDuree] = useState(null);
   const [objectifsChoisis, setObjectifsChoisis] = useState([]);
   const [niveau, setNiveau] = useState(null);
+  const [materiel, setMateriel] = useState(null); // 'sans' | 'avec' | 'peu_importe'
   const [seanceGeneree, setSeanceGeneree] = useState(null);
 
   // Liste des objectifs avec leurs icônes
@@ -2633,6 +2635,7 @@ function MaSeance({ postures, setSeanceActive, profil, aAccesComplet, onUnlock }
     setDuree(null);
     setObjectifsChoisis([]);
     setNiveau(null);
+    setMateriel(null);
     setSeanceGeneree(null);
   };
 // Algorithme de génération de séance
@@ -2660,7 +2663,13 @@ const filtreNiveau = (p) => {
       return true;
     };
 
-    const posturesEligibles = postures.filter(filtreNiveau);
+    const filtreMateriel = (p) => {
+      if (materiel === 'sans') return p.avecMateriel !== true;
+      if (materiel === 'avec') return p.avecMateriel === true;
+      return true; // 'peu_importe' ou non choisi : pas de filtre
+    };
+
+    const posturesEligibles = postures.filter(p => filtreNiveau(p) && filtreMateriel(p));
 
     const matchObjectif = (p) =>
   objectifsChoisis.length === 0 ||
@@ -2727,14 +2736,14 @@ const filtreNiveau = (p) => {
     };
   };
 
-  // Dès que le niveau est choisi, on génère la séance et passe à l'étape 4
+  // Dès que le niveau ET le matériel sont choisis, on génère la séance
   useEffect(() => {
-    if (niveau && duree && objectifsChoisis.length > 0) {
+    if (niveau && materiel && duree && objectifsChoisis.length > 0) {
       const seance = genererSeance();
       setSeanceGeneree(seance);
       setEtape(4);
     }
-  }, [niveau]);
+  }, [niveau, materiel]);
 
   return (
     <div className="fade-up py-8">
@@ -2870,6 +2879,46 @@ const filtreNiveau = (p) => {
               <p className="text-sm mt-1" style={{ color: COLORS.textMedium }}>Toutes les postures accessibles</p>
             </button>
           </div>
+
+          <p className="text-center text-sm mt-8 mb-4" style={{ color: COLORS.primary }}>
+            Avec ou sans matériel ?
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            <button
+              onClick={() => setMateriel('sans')}
+              className="p-4 rounded-2xl text-center transition-all hover:scale-105"
+              style={{
+                background: materiel === 'sans' ? 'rgba(193,157,11,0.15)' : 'rgba(255, 255, 255, 0.6)',
+                border: materiel === 'sans' ? `2px solid ${COLORS.primary}` : '1px solid rgba(193, 157, 11, 0.3)',
+              }}
+            >
+              <span className="text-2xl">🧍</span>
+              <p className="text-sm mt-2" style={{ color: COLORS.textDark, fontWeight: materiel === 'sans' ? 600 : 500 }}>Sans matériel</p>
+            </button>
+            <button
+              onClick={() => setMateriel('avec')}
+              className="p-4 rounded-2xl text-center transition-all hover:scale-105"
+              style={{
+                background: materiel === 'avec' ? 'rgba(193,157,11,0.15)' : 'rgba(255, 255, 255, 0.6)',
+                border: materiel === 'avec' ? `2px solid ${COLORS.primary}` : '1px solid rgba(193, 157, 11, 0.3)',
+              }}
+            >
+              <span className="text-2xl">🏋️</span>
+              <p className="text-sm mt-2" style={{ color: COLORS.textDark, fontWeight: materiel === 'avec' ? 600 : 500 }}>Avec matériel</p>
+            </button>
+            <button
+              onClick={() => setMateriel('peu_importe')}
+              className="p-4 rounded-2xl text-center transition-all hover:scale-105"
+              style={{
+                background: materiel === 'peu_importe' ? 'rgba(193,157,11,0.15)' : 'rgba(255, 255, 255, 0.6)',
+                border: materiel === 'peu_importe' ? `2px solid ${COLORS.primary}` : '1px solid rgba(193, 157, 11, 0.3)',
+              }}
+            >
+              <span className="text-2xl">✨</span>
+              <p className="text-sm mt-2" style={{ color: COLORS.textDark, fontWeight: materiel === 'peu_importe' ? 600 : 500 }}>Peu importe</p>
+            </button>
+          </div>
+
           <button onClick={() => setEtape(2)} className="mt-6 text-sm tracking-widest uppercase mx-auto block" style={{ color: COLORS.primary }}>
             ← Étape précédente
           </button>

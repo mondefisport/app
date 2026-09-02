@@ -37,17 +37,18 @@ export const VOCAB = {
 
   objectifs: {
     label: 'Objectifs',
-    exemples: ['Renforcement', 'Cardio', 'Mobilité', 'Gainage', 'Forme générale'],
+    exemples: ['Haut du corps', 'Abdos', 'Cardio', 'Bas du corps'],
     // Liste structurée utilisée par les écrans de sélection d'objectifs
     // (onboarding, profil, générateur "Créer ma séance"). Les id doivent
     // correspondre aux tags présents dans la colonne objectifs de la
     // table postures, pour que le filtrage fonctionne (voir Annexe 34).
+    // Organisés par zone du corps plutôt que par type d'objectif abstrait
+    // — colle mieux à la structure bodyPart des données WorkoutX.
     liste: [
-      { id: 'renforcement', label: 'Me renforcer', icone: '💪', emoji: '💪' },
-      { id: 'cardio', label: 'Travailler mon cardio', icone: '❤️', emoji: '❤️' },
-      { id: 'mobilite', label: 'Gagner en mobilité', icone: '🧘', emoji: '🧘' },
-      { id: 'gainage', label: 'Renforcer mon gainage', icone: '🔥', emoji: '🔥' },
-      { id: 'general', label: 'Forme générale', icone: '✨', emoji: '✨' },
+      { id: 'haut_du_corps', label: 'Haut du corps', icone: '💪', emoji: '💪' },
+      { id: 'abdos', label: 'Abdos', icone: '🔥', emoji: '🔥' },
+      { id: 'cardio', label: 'Cardio', icone: '❤️', emoji: '❤️' },
+      { id: 'bas_du_corps', label: 'Bas du corps', icone: '🦵', emoji: '🦵' },
     ],
   },
 
