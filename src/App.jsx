@@ -506,6 +506,11 @@ function ModalPosture({ posture, onClose }) {
             >
               <span className="px-3 py-1 rounded-full" style={{ background: 'rgba(193,157,11,0.1)' }}>⏱ {posture.duree}s</span>
               <span className="px-3 py-1 rounded-full" style={{ background: 'rgba(193,157,11,0.1)' }}>⚡ {posture.difficulte}</span>
+              {posture.seriesRecommandees && posture.repetitionsRecommandees && (
+                <span className="px-3 py-1 rounded-full" style={{ background: 'rgba(193,157,11,0.1)' }}>
+                  🔁 {posture.seriesRecommandees} × {posture.repetitionsRecommandees}
+                </span>
+              )}
             </div>
 
             {/* Bouton retourner */}
@@ -1266,6 +1271,8 @@ const posturesFormatees = data.map(p => ({
           objectifs: p.objectifs ? p.objectifs.split(',').map(o => o.trim()) : [],
           urlImage: p.url_image,
           avecMateriel: p.avec_materiel,
+          seriesRecommandees: p.series_recommandees,
+          repetitionsRecommandees: p.repetitions_recommandees,
           urlAudio: p.url_audio,
           urlVideo: p.url_video,
           createdAt: p.created_at,
@@ -2464,7 +2471,7 @@ function SeanceEnCours({ seance, onClose, profil, postures, utilisateur, onTermi
               strokeDasharray={`${progression * 2.827} 282.7`} strokeLinecap="round"
               style={{ transition: 'stroke-dasharray 1s linear' }} />
            </svg>
-         <div className="absolute inset-3 rounded-full overflow-hidden flex items-center justify-center breathe">
+         <div className="absolute inset-3 rounded-full overflow-hidden flex items-center justify-center">
           {postureActuelle.urlImage ? (
         <img
             src={postureActuelle.urlImage}
@@ -2476,7 +2483,15 @@ function SeanceEnCours({ seance, onClose, profil, postures, utilisateur, onTermi
     )}
   </div>
 </div>
-<p className="font-display text-4xl mb-10" style={{ color: COLORS.textDark }}>{tempsRestant}s</p>
+<p className="font-display text-4xl mb-2" style={{ color: COLORS.textDark }}>{tempsRestant}s</p>
+
+{postureActuelle.seriesRecommandees && postureActuelle.repetitionsRecommandees ? (
+  <p className="text-sm mb-8" style={{ color: COLORS.primary }}>
+    🔁 Objectif : {postureActuelle.seriesRecommandees} séries × {postureActuelle.repetitionsRecommandees} répétitions sur ce temps
+  </p>
+) : (
+  <div className="mb-8" />
+)}
 
 <p className="max-w-md mx-auto text-sm mb-6 leading-relaxed" style={{ color: COLORS.textMedium }}>{postureActuelle.instructions}</p>
 
