@@ -1796,9 +1796,6 @@ const valider = async () => {
         <p className="text-xs text-center mt-6" style={{ color: COLORS.primary }}>
           Salariés : {Object.keys(codes).join(' · ')}
         </p>
-        <p className="text-xs text-center mt-2" style={{ color: COLORS.secondary, opacity: 0.6 }}>
-          Espace admin : ADMIN-PAULINE
-        </p>
       </div>
     </div>
   );
@@ -3454,6 +3451,14 @@ function AdminTableau({ seances, programmes, codes }) {
 function AdminSeances({ seances, setSeances, postures }) {
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState(null);
+  const [rechercheExercice, setRechercheExercice] = useState('');
+  const [filtreZoneExercice, setFiltreZoneExercice] = useState('toutes');
+
+  const posturesFiltrees = postures.filter((p) => {
+    const matchRecherche = !rechercheExercice || p.nomFr?.toLowerCase().includes(rechercheExercice.toLowerCase());
+    const matchZone = filtreZoneExercice === 'toutes' || p.objectifs?.includes(filtreZoneExercice);
+    return matchRecherche && matchZone;
+  });
 
   const nouvelle = () => {
     setEditId('nouveau');
@@ -3551,8 +3556,33 @@ function AdminSeances({ seances, setSeances, postures }) {
           </div>
           <div className="mb-4">
             <label className="text-xs tracking-widest uppercase mb-2 block" style={{ color: COLORS.primary }}>Postures incluses ({form.postures.length})</label>
+            <input
+              type="text"
+              placeholder="Rechercher un exercice..."
+              value={rechercheExercice}
+              onChange={(e) => setRechercheExercice(e.target.value)}
+              className="w-full px-4 py-2 rounded-xl mb-2"
+              style={{ background: COLORS.backgroundWhite, border: '1px solid rgba(193,157,11,0.3)', color: COLORS.textDark, outline: 'none' }}
+            />
+            <div className="flex gap-1.5 flex-wrap mb-3">
+              {[{ id: 'toutes', label: 'Toutes les zones' }, ...VOCAB.objectifs.liste].map((z) => (
+                <button
+                  key={z.id}
+                  onClick={() => setFiltreZoneExercice(z.id)}
+                  className="px-3 py-1 rounded-full text-xs"
+                  style={{
+                    background: filtreZoneExercice === z.id ? COLORS.secondary : COLORS.backgroundWhite,
+                    color: filtreZoneExercice === z.id ? COLORS.backgroundCream : COLORS.textDark,
+                    border: '1px solid rgba(193,157,11,0.3)',
+                  }}
+                >
+                  {z.icone ? `${z.icone} ` : ''}{z.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] mb-2" style={{ color: COLORS.textMuted }}>{posturesFiltrees.length} exercice{posturesFiltrees.length > 1 ? 's' : ''}</p>
             <div className="flex gap-2 flex-wrap">
-              {postures.map((p) => (
+              {posturesFiltrees.map((p) => (
                 <button key={p.id} onClick={() => togglePosture(p.id)} className="px-3 py-2 rounded-xl text-sm flex flex-col items-center gap-0.5" style={{ background: form.postures.includes(p.id) ? `linear-gradient(135deg, ${COLORS.primaryLight}, ${COLORS.primary})` : COLORS.backgroundWhite, color: form.postures.includes(p.id) ? COLORS.backgroundCream : COLORS.textDark, border: '1px solid rgba(193,157,11,0.3)' }}>
                   <span>{p.icone} {p.nomFr}</span>
                   <span className="text-[10px] opacity-75">{p.duree}s</span>
@@ -3619,6 +3649,14 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
   const [form, setForm] = useState(null);
   const [editId, setEditId] = useState(null);
   const [erreur, setErreur] = useState('');
+  const [rechercheExercice, setRechercheExercice] = useState('');
+  const [filtreZoneExercice, setFiltreZoneExercice] = useState('toutes');
+
+  const posturesFiltrees = postures.filter((p) => {
+    const matchRecherche = !rechercheExercice || p.nomFr?.toLowerCase().includes(rechercheExercice.toLowerCase());
+    const matchZone = filtreZoneExercice === 'toutes' || p.objectifs?.includes(filtreZoneExercice);
+    return matchRecherche && matchZone;
+  });
 
   const nouveau = () => {
     setEditId('nouveau');
@@ -3782,8 +3820,39 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
                     <p className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: COLORS.textMedium }}>
                       Postures de ce jour ({j.postures.length}) — laisser vide pour une génération aléatoire
                     </p>
+                    {i === 0 && (
+                      <div className="mb-2">
+                        <input
+                          type="text"
+                          placeholder="Rechercher un exercice..."
+                          value={rechercheExercice}
+                          onChange={(e) => setRechercheExercice(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-lg text-xs mb-1.5"
+                          style={{ background: 'white', border: '1px solid rgba(193,157,11,0.25)', color: COLORS.textDark, outline: 'none' }}
+                        />
+                        <div className="flex gap-1 flex-wrap">
+                          {[{ id: 'toutes', label: 'Toutes les zones' }, ...VOCAB.objectifs.liste].map((z) => (
+                            <button
+                              key={z.id}
+                              onClick={() => setFiltreZoneExercice(z.id)}
+                              className="px-2 py-0.5 rounded-full text-[10px]"
+                              style={{
+                                background: filtreZoneExercice === z.id ? COLORS.secondary : 'white',
+                                color: filtreZoneExercice === z.id ? COLORS.backgroundCream : COLORS.textDark,
+                                border: '1px solid rgba(193,157,11,0.25)',
+                              }}
+                            >
+                              {z.icone ? `${z.icone} ` : ''}{z.label}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-[9px] mt-1" style={{ color: COLORS.textMuted }}>
+                          Recherche/filtre partagés pour tous les jours ({posturesFiltrees.length} résultat{posturesFiltrees.length > 1 ? 's' : ''})
+                        </p>
+                      </div>
+                    )}
                     <div className="flex gap-1.5 flex-wrap">
-                      {postures.map((p) => (
+                      {posturesFiltrees.map((p) => (
                         <button
                           key={p.id}
                           onClick={() => toggleJourPosture(i, p.id)}
