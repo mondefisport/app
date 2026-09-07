@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, ChevronRight, Check, Clock, Heart, Wind, Sun, Moon, Sparkles, Lock, Building2, KeyRound, ArrowRight, Mail, Share2, Globe, X, User, Settings, Plus, Trash2, Edit3, BarChart3, Calendar, LayoutGrid, Palette } from 'lucide-react';
+import { Play, Pause, ChevronRight, Check, Clock, Heart, Wind, Sun, Moon, Sparkles, Lock, Building2, KeyRound, ArrowRight, Mail, Share2, Globe, X, User, Settings, Plus, Trash2, Edit3, BarChart3, Calendar, LayoutGrid, Palette, Dumbbell } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { COLORS, COLORS_PAR_DEFAUT, getCouleurChakra, chargerThemeDepuisSupabase, sauvegarderThemeSupabase } from './theme';
 import { CLIENT, LOGO_URL, CODES_VALIDES } from './config';
@@ -1273,6 +1273,8 @@ const posturesFormatees = data.map(p => ({
           avecMateriel: p.avec_materiel,
           seriesRecommandees: p.series_recommandees,
           repetitionsRecommandees: p.repetitions_recommandees,
+          modeCompletion: p.mode_completion || 'temps',
+          visibleGenerateur: p.visible_generateur !== false,
           urlAudio: p.url_audio,
           urlVideo: p.url_video,
           createdAt: p.created_at,
@@ -2228,6 +2230,7 @@ function Postures({ postureSelectionnee, setPostureSelectionnee, aAccesComplet, 
 
       <div className="grid md:grid-cols-2 gap-5">
   {[...postures]
+    .filter((p) => p.visibleGenerateur)
     .sort((a, b) => {
       if (!a.createdAt && !b.createdAt) return 0;
       if (!a.createdAt) return 1;
@@ -2369,32 +2372,74 @@ function Seances({ setSeanceActive, aAccesComplet, onUnlock, profil, seances }) 
 // ============ SÉANCE EN COURS ============
 function SeanceEnCours({ seance, onClose, profil, postures, utilisateur, onTermine }) {
   const posturesS = seance.postures.map((id) => postures.find((p) => p.id === id));
+  // Durée personnalisée par exercice, définie depuis l'admin pour ce jour de
+  // programme précis (ex. planche 20s au jour 1, 5 min au jour 30) — sinon
+  // on retombe sur la durée par défaut de l'exercice en base.
+  const dureeEffective = (p) => seance.dureesOverride?.[p.id] ?? p.duree;
+  const tempsReposParDefaut = Number(seance.tempsRepos) || 0;
   const [indexActuel, setIndexActuel] = useState(0);
-  const [tempsRestant, setTempsRestant] = useState(posturesS[0].duree);
+  const [tempsRestant, setTempsRestant] = useState(dureeEffective(posturesS[0]));
   const [enPause, setEnPause] = useState(false);
+  const [enRepos, setEnRepos] = useState(false);
   const [termine, setTermine] = useState(false);
   const intervalRef = useRef(null);
 
-  useEffect(() => { setTempsRestant(posturesS[indexActuel].duree); }, [indexActuel]);
+  useEffect(() => {
+    if (!enRepos) setTempsRestant(dureeEffective(posturesS[indexActuel]));
+  }, [indexActuel]);
 
   useEffect(() => {
-    if (enPause || termine) return;
+    // En mode "répétitions", pas de décompte automatique — l'utilisateur
+    // valide lui-même une fois ses répétitions faites (voir passerSuivant).
+    // Exception : la phase de repos, elle, reste toujours chronométrée.
+    if (enPause || termine || (!enRepos && posturesS[indexActuel].modeCompletion === 'repetitions')) return;
     intervalRef.current = setInterval(() => {
       setTempsRestant((t) => {
         if (t <= 1) {
-          if (indexActuel < posturesS.length - 1) {
+          if (enRepos) {
+            // Fin du repos -> on passe réellement à l'exercice suivant
+            setEnRepos(false);
             setIndexActuel((i) => i + 1);
-            return posturesS[indexActuel + 1].duree;
+            return dureeEffective(posturesS[indexActuel + 1]);
+          }
+          if (indexActuel < posturesS.length - 1) {
+            if (tempsReposParDefaut > 0) {
+              setEnRepos(true);
+              return tempsReposParDefaut;
+            }
+            setIndexActuel((i) => i + 1);
+            return dureeEffective(posturesS[indexActuel + 1]);
           } else { setTermine(true); return 0; }
         }
         return t - 1;
       });
     }, 1000);
     return () => clearInterval(intervalRef.current);
-  }, [enPause, indexActuel, termine]);
+  }, [enPause, indexActuel, termine, enRepos]);
+
+  // Pour les exercices en mode "répétitions" (ex. sit-up, spider crawl) :
+  // l'utilisateur clique lui-même quand il a terminé ses répétitions,
+  // plutôt que d'attendre un décompte automatique. On passe alors par la
+  // phase de repos si elle est configurée, comme pour les exercices chronométrés.
+  const passerSuivant = () => {
+    if (indexActuel < posturesS.length - 1) {
+      if (tempsReposParDefaut > 0) {
+        setEnRepos(true);
+        setTempsRestant(tempsReposParDefaut);
+      } else {
+        setIndexActuel((i) => i + 1);
+      }
+    } else {
+      setTermine(true);
+    }
+  };
 
   const postureActuelle = posturesS[indexActuel];
-  const progression = ((postureActuelle.duree - tempsRestant) / postureActuelle.duree) * 100;
+  const progression = enRepos
+    ? ((tempsReposParDefaut - tempsRestant) / tempsReposParDefaut) * 100
+    : postureActuelle.modeCompletion === 'repetitions'
+      ? 0
+      : ((dureeEffective(postureActuelle) - tempsRestant) / dureeEffective(postureActuelle)) * 100;
   const postureSuivante = posturesS[indexActuel + 1];
   const estDerniere = indexActuel === posturesS.length - 1;
   const afficherApercu = tempsRestant <= 10 && tempsRestant > 0;
@@ -2461,8 +2506,24 @@ function SeanceEnCours({ seance, onClose, profil, postures, utilisateur, onTermi
         </div>
 
         <div className="text-center">
-          <p className="text-xs tracking-[0.3em] uppercase mb-3" style={{ color: COLORS.primary }}>{postureActuelle.nom}</p>
-          <h2 className="font-display text-5xl mb-12" style={{ color: COLORS.textDark, fontWeight: 300 }}>{postureActuelle.nomFr}</h2>
+          {enRepos ? (
+            <>
+              <p className="text-xs tracking-[0.3em] uppercase mb-3" style={{ color: COLORS.primary }}>😮‍💨 Récupération</p>
+              <h2 className="font-display text-5xl mb-12" style={{ color: COLORS.textDark, fontWeight: 300 }}>
+                Repos
+              </h2>
+              {postureSuivante && (
+                <p className="text-sm mb-8" style={{ color: COLORS.textMedium }}>
+                  Suivant : {postureSuivante.icone} {postureSuivante.nomFr}
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="text-xs tracking-[0.3em] uppercase mb-3" style={{ color: COLORS.primary }}>{postureActuelle.nom}</p>
+              <h2 className="font-display text-5xl mb-12" style={{ color: COLORS.textDark, fontWeight: 300 }}>{postureActuelle.nomFr}</h2>
+            </>
+          )}
 
           <div className="relative w-80 h-80 mx-auto mb-4">
             <svg className="absolute inset-0 -rotate-90" viewBox="0 0 100 100">
@@ -2471,8 +2532,10 @@ function SeanceEnCours({ seance, onClose, profil, postures, utilisateur, onTermi
               strokeDasharray={`${progression * 2.827} 282.7`} strokeLinecap="round"
               style={{ transition: 'stroke-dasharray 1s linear' }} />
            </svg>
-         <div className="absolute inset-3 rounded-full overflow-hidden flex items-center justify-center">
-          {postureActuelle.urlImage ? (
+         <div className="absolute inset-3 rounded-full overflow-hidden flex items-center justify-center" style={{ background: enRepos ? COLORS.backgroundBeige : 'transparent' }}>
+          {enRepos ? (
+            <div className="text-7xl">😮‍💨</div>
+          ) : postureActuelle.urlImage ? (
         <img
             src={postureActuelle.urlImage}
           alt={postureActuelle.nomFr}
@@ -2483,17 +2546,44 @@ function SeanceEnCours({ seance, onClose, profil, postures, utilisateur, onTermi
     )}
   </div>
 </div>
-<p className="font-display text-4xl mb-2" style={{ color: COLORS.textDark }}>{tempsRestant}s</p>
-
-{postureActuelle.seriesRecommandees && postureActuelle.repetitionsRecommandees ? (
-  <p className="text-sm mb-8" style={{ color: COLORS.primary }}>
-    🔁 Objectif : {postureActuelle.seriesRecommandees} séries × {postureActuelle.repetitionsRecommandees} répétitions sur ce temps
-  </p>
+{enRepos ? (
+  <>
+    <p className="font-display text-4xl mb-2" style={{ color: COLORS.textDark }}>{tempsRestant}s</p>
+    <p className="max-w-md mx-auto text-sm mb-6 leading-relaxed" style={{ color: COLORS.textMedium }}>
+      Reprenez votre souffle avant le prochain exercice.
+    </p>
+  </>
 ) : (
-  <div className="mb-8" />
-)}
+  <>
+    {postureActuelle.modeCompletion === 'repetitions' ? (
+      <>
+        <p className="font-display text-3xl mb-2" style={{ color: COLORS.textDark }}>
+          🎯 {postureActuelle.repetitionsRecommandees || '10-15'} répétitions
+        </p>
+        <button
+          onClick={passerSuivant}
+          className="px-8 py-3 rounded-full text-sm tracking-widest uppercase mb-8"
+          style={{ background: COLORS.primary, color: '#FFFFFF' }}
+        >
+          ✅ J'ai terminé mes répétitions
+        </button>
+      </>
+    ) : (
+      <>
+        <p className="font-display text-4xl mb-2" style={{ color: COLORS.textDark }}>{tempsRestant}s</p>
+        {postureActuelle.seriesRecommandees && postureActuelle.repetitionsRecommandees ? (
+          <p className="text-sm mb-8" style={{ color: COLORS.primary }}>
+            🔁 Objectif : {postureActuelle.seriesRecommandees} séries × {postureActuelle.repetitionsRecommandees} répétitions sur ce temps
+          </p>
+        ) : (
+          <div className="mb-8" />
+        )}
+      </>
+    )}
 
-<p className="max-w-md mx-auto text-sm mb-6 leading-relaxed" style={{ color: COLORS.textMedium }}>{postureActuelle.instructions}</p>
+    <p className="max-w-md mx-auto text-sm mb-6 leading-relaxed" style={{ color: COLORS.textMedium }}>{postureActuelle.instructions}</p>
+  </>
+)}
 
 {postureActuelle.urlAudio && (
   <div className="flex justify-center mb-10">
@@ -2630,6 +2720,8 @@ function Programme({ joursTermines, setJoursTermines, aAccesComplet, onUnlock, p
             .sort(() => Math.random() - 0.5)
             .slice(0, Math.max(3, Math.round(j.duree * 60 / 90)))
             .map(p => p.id),
+  dureesOverride: j.dureesPersonnalisees || {},
+  tempsRepos: Number(j.tempsRepos) || 0,
   onTermine: () => toggleJour(j),
 });
 }}
@@ -2713,7 +2805,7 @@ const filtreNiveau = (p) => {
       return true; // 'peu_importe' ou non choisi : pas de filtre
     };
 
-    const posturesEligibles = postures.filter(p => filtreNiveau(p) && filtreMateriel(p));
+    const posturesEligibles = postures.filter(p => filtreNiveau(p) && filtreMateriel(p) && p.visibleGenerateur);
 
     const matchObjectif = (p) =>
   objectifsChoisis.length === 0 ||
@@ -3050,6 +3142,7 @@ function Admin({ seances, setSeances, programmes, setProgrammes, codes, setCodes
     { id: 'tableau', label: 'Tableau de bord', icone: BarChart3 },
     { id: 'seances', label: 'Séances', icone: LayoutGrid },
     { id: 'programmes', label: 'Programmes', icone: Calendar },
+    { id: 'exercices', label: 'Exercices', icone: Dumbbell },
     { id: 'codes', label: 'Codes entreprise', icone: KeyRound },
     { id: 'reglages', label: 'Réglages', icone: Palette },
   ];
@@ -3095,6 +3188,7 @@ function Admin({ seances, setSeances, programmes, setProgrammes, codes, setCodes
         {onglet === 'seances' && <AdminSeances seances={seances} setSeances={setSeances} postures={postures} />}
         {onglet === 'programmes' && <AdminProgrammes programmes={programmes} setProgrammes={setProgrammes} postures={postures} />}
         {onglet === 'codes' && <AdminCodes codes={codes} setCodes={setCodes} />}
+        {onglet === 'exercices' && <AdminExercices postures={postures} />}
         {onglet === 'reglages' && <AdminReglages onThemeChange={onThemeChange} />}
       </main>
     </div>
@@ -3102,6 +3196,102 @@ function Admin({ seances, setSeances, programmes, setProgrammes, codes, setCodes
 }
 
 // --- Admin : Réglages (couleurs de l'app) ---
+// --- Admin : Exercices (mode temps/répétitions) ---
+function AdminExercices({ postures }) {
+  const [recherche, setRecherche] = useState('');
+  const [modesLocaux, setModesLocaux] = useState({}); // id -> mode, pour affichage optimiste
+  const [enregistrementId, setEnregistrementId] = useState(null);
+
+  const modeDe = (p) => modesLocaux[p.id] ?? p.modeCompletion ?? 'temps';
+
+  const changerMode = async (p, nouveauMode) => {
+    setEnregistrementId(p.id);
+    setModesLocaux((m) => ({ ...m, [p.id]: nouveauMode }));
+    const { error } = await supabase
+      .from('postures')
+      .update({ mode_completion: nouveauMode })
+      .eq('id', p.id);
+    setEnregistrementId(null);
+    if (error) {
+      console.error('Erreur changement de mode:', error);
+      // on annule l'affichage optimiste en cas d'échec
+      setModesLocaux((m) => { const c = { ...m }; delete c[p.id]; return c; });
+    }
+  };
+
+  const posturesFiltrees = postures.filter((p) =>
+    !recherche || p.nomFr?.toLowerCase().includes(recherche.toLowerCase())
+  );
+
+  return (
+    <div>
+      <h2 className="font-bold text-2xl mb-2" style={{ color: COLORS.secondary }}>Exercices — Mode de complétion</h2>
+      <p className="text-sm mb-6" style={{ color: COLORS.textMedium }}>
+        Choisis, pour chaque exercice, s'il se termine au chronomètre (comportement par défaut)
+        ou par validation manuelle des répétitions (l'utilisateur clique "J'ai terminé" au lieu d'attendre un décompte).
+      </p>
+
+      <input
+        type="text"
+        placeholder="Rechercher un exercice..."
+        value={recherche}
+        onChange={(e) => setRecherche(e.target.value)}
+        className="w-full px-4 py-2.5 rounded-xl border mb-4"
+        style={{ borderColor: 'rgba(193,157,11,0.3)' }}
+      />
+
+      <p className="text-xs mb-3" style={{ color: COLORS.textMuted }}>
+        {posturesFiltrees.length} exercice{posturesFiltrees.length > 1 ? 's' : ''}
+      </p>
+
+      <div className="space-y-2 max-h-[600px] overflow-y-auto">
+        {posturesFiltrees.map((p) => {
+          const mode = modeDe(p);
+          return (
+            <div
+              key={p.id}
+              className="flex items-center justify-between gap-3 p-3 rounded-xl"
+              style={{ background: COLORS.backgroundGrayLight }}
+            >
+              <span className="text-sm truncate" style={{ color: COLORS.textDark, flex: 1 }}>
+                {p.icone} {p.nomFr}
+              </span>
+              <div className="flex gap-1.5 flex-shrink-0">
+                <button
+                  onClick={() => changerMode(p, 'temps')}
+                  disabled={enregistrementId === p.id}
+                  className="px-3 py-1.5 rounded-full text-xs"
+                  style={{
+                    background: mode === 'temps' ? COLORS.primary : 'white',
+                    color: mode === 'temps' ? '#FFFFFF' : COLORS.textDark,
+                    border: '1px solid rgba(193,157,11,0.3)',
+                    opacity: enregistrementId === p.id ? 0.5 : 1,
+                  }}
+                >
+                  ⏱ Temps
+                </button>
+                <button
+                  onClick={() => changerMode(p, 'repetitions')}
+                  disabled={enregistrementId === p.id}
+                  className="px-3 py-1.5 rounded-full text-xs"
+                  style={{
+                    background: mode === 'repetitions' ? COLORS.primary : 'white',
+                    color: mode === 'repetitions' ? '#FFFFFF' : COLORS.textDark,
+                    border: '1px solid rgba(193,157,11,0.3)',
+                    opacity: enregistrementId === p.id ? 0.5 : 1,
+                  }}
+                >
+                  🎯 Répétitions
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function AdminReglages({ onThemeChange }) {
   // Rôles de couleur les plus visibles à l'écran — volontairement un
   // sous-ensemble des ~19 clés de COLORS pour garder l'écran simple.
@@ -3429,17 +3619,17 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
   const nouveau = () => {
     setEditId('nouveau');
     setErreur('');
-    setForm({ id: '', titre: '', sousTitre: '', description: '', jours: [{ titre: '', duree: 5, gratuit: true, postures: [] }] });
+    setForm({ id: '', titre: '', sousTitre: '', description: '', jours: [{ titre: '', duree: 5, gratuit: true, postures: [], dureesPersonnalisees: {}, tempsRepos: 0 }] });
   };
   const editer = (p) => {
     setEditId(p.id);
     setErreur('');
-    setForm({ id: p.id, titre: p.titre, sousTitre: p.sousTitre, description: p.description, jours: p.jours.map((j) => ({ titre: j.titre, duree: j.duree, gratuit: j.gratuit, postures: j.postures || [] })) });
+    setForm({ id: p.id, titre: p.titre, sousTitre: p.sousTitre, description: p.description, jours: p.jours.map((j) => ({ titre: j.titre, duree: j.duree, gratuit: j.gratuit, postures: j.postures || [], dureesPersonnalisees: j.dureesPersonnalisees || {}, tempsRepos: j.tempsRepos || 0 })) });
   };
   const annuler = () => { setForm(null); setEditId(null); };
 
   const ajouterJour = () => {
-    setForm({ ...form, jours: [...form.jours, { titre: '', duree: 5, gratuit: false, postures: [] }] });
+    setForm({ ...form, jours: [...form.jours, { titre: '', duree: 5, gratuit: false, postures: [], dureesPersonnalisees: {}, tempsRepos: 0 }] });
   };
   const supprimerJour = (index) => {
     setForm({ ...form, jours: form.jours.filter((_, i) => i !== index) });
@@ -3455,6 +3645,21 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
     jours[index] = { ...jours[index], postures: dejaChoisi ? jours[index].postures.filter((x) => x !== pid) : [...jours[index].postures, pid] };
     setForm({ ...form, jours });
   };
+  // Durée personnalisée pour un exercice précis, un jour précis (ex. planche
+  // qui dure 20s au jour 1 mais 5 min au jour 30, sans dupliquer l'exercice
+  // en base — voir Défi Gainage 30 Jours). Vide/0 = utilise la durée par
+  // défaut de l'exercice.
+  const modifierDureePersonnalisee = (index, pid, secondes) => {
+    const jours = [...form.jours];
+    const dureesPersonnalisees = { ...(jours[index].dureesPersonnalisees || {}) };
+    if (secondes === '' || secondes === null) {
+      delete dureesPersonnalisees[pid];
+    } else {
+      dureesPersonnalisees[pid] = Number(secondes);
+    }
+    jours[index] = { ...jours[index], dureesPersonnalisees };
+    setForm({ ...form, jours });
+  };
 
   const enregistrer = async () => {
     setErreur('');
@@ -3462,7 +3667,7 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
     const joursValides = form.jours.filter((j) => j.titre.trim());
     if (joursValides.length === 0) { setErreur('Renseignez au moins un jour avec un titre.'); return; }
     const id = form.id.trim() || 'prog-' + form.titre.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 15);
-    const jours = joursValides.map((j, i) => ({ jour: i + 1, titre: j.titre.trim(), duree: Number(j.duree) || 5, gratuit: !!j.gratuit, postures: j.postures || [] }));
+    const jours = joursValides.map((j, i) => ({ jour: i + 1, titre: j.titre.trim(), duree: Number(j.duree) || 5, gratuit: !!j.gratuit, postures: j.postures || [], dureesPersonnalisees: j.dureesPersonnalisees || {}, tempsRepos: Number(j.tempsRepos) || 0 }));
     const progFinal = { id, titre: form.titre, sousTitre: form.sousTitre || 'Programme', description: form.description, jours };
 
     // Sauvegarde en base Supabase (upsert : crée ou met à jour selon le slug)
@@ -3552,6 +3757,18 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
                     <input type="checkbox" checked={j.gratuit} onChange={(e) => modifierJour(i, 'gratuit', e.target.checked)} className="w-4 h-4" />
                     Gratuit
                   </label>
+                  <label className="flex items-center gap-1.5 text-xs" style={{ color: COLORS.textMedium }}>
+                    😮‍💨 Repos entre exercices :
+                    <input
+                      type="number"
+                      min="0"
+                      value={j.tempsRepos ?? 0}
+                      onChange={(e) => modifierJour(i, 'tempsRepos', e.target.value)}
+                      className="w-16 px-2 py-1 rounded-lg border"
+                      style={{ borderColor: 'rgba(193,157,11,0.3)' }}
+                    />
+                    s
+                  </label>
                   {form.jours.length > 1 && (
                     <button onClick={() => supprimerJour(i)} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: 'rgba(160,82,45,0.12)', color: COLORS.textAccent }}>
                       <Trash2 size={13} />
@@ -3578,6 +3795,34 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
                       ))}
                     </div>
                   </div>
+                  {j.postures.length > 0 && (
+                    <div className="w-full mt-3">
+                      <p className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: COLORS.textMedium }}>
+                        Durée personnalisée pour ce jour (optionnel — ex. planche 20s au jour 1, 5 min au jour 30, sans dupliquer l'exercice)
+                      </p>
+                      <div className="flex flex-col gap-1.5">
+                        {j.postures.map((pid) => {
+                          const p = postures.find((x) => x.id === pid);
+                          if (!p) return null;
+                          return (
+                            <div key={pid} className="flex items-center gap-2 text-xs">
+                              <span style={{ color: COLORS.textDark, minWidth: '140px' }}>{p.icone} {p.nomFr}</span>
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder={`défaut : ${p.duree}s`}
+                                value={j.dureesPersonnalisees?.[pid] ?? ''}
+                                onChange={(e) => modifierDureePersonnalisee(i, pid, e.target.value)}
+                                className="w-24 px-2 py-1 rounded-lg border"
+                                style={{ borderColor: 'rgba(193,157,11,0.3)' }}
+                              />
+                              <span style={{ color: COLORS.textMedium }}>secondes</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
