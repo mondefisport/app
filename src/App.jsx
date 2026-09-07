@@ -1597,7 +1597,7 @@ if (utilisateur && !chargementProfil && profilUtilisateur === null) {
       {/* App principale (avec accès) */}
       {aAcces && !seanceActive && vue !== 'rh' && (
         <>
-          <Navigation vue={vue} setVue={setVue} acces={acces} profil={profil} programmes={programmes} onEditProfil={() => setShowProfilModal(true)} onDeconnexion={async () => { await supabase.auth.signOut(); setUtilisateur(null); setProfilUtilisateur(null); setAcces(null); setProfil(null); setVue('portail'); }} />
+          <Navigation vue={vue} setVue={setVue} acces={acces} profil={profil} programmes={programmes} onEditProfil={() => setShowProfilModal(true)} onCode={() => setShowCodeModal(true)} onDeconnexion={async () => { await supabase.auth.signOut(); setUtilisateur(null); setProfilUtilisateur(null); setAcces(null); setProfil(null); setVue('portail'); }} />
           <main className="max-w-5xl mx-auto px-6 pb-20">
             {vue === 'accueil' && <Accueil setVue={setVue} setSeanceActive={setSeanceActive} acces={acces} aAccesComplet={aAccesComplet} profil={profil || profilUtilisateur} seances={seances} postures={postures} statsSeances={statsSeances} nouveauContenu={nouveauContenu} 
             onVuNouveaute={() => { if (nouveauContenu) { localStorage.setItem('sara_derniere_nouveaute_vue', nouveauContenu.date); setNouveauContenu(null); } }}
@@ -2017,7 +2017,7 @@ function PageRH({ onClose }) {
 
 
 
-function Navigation({ vue, setVue, acces, profil, programmes, onEditProfil, onDeconnexion }) {
+function Navigation({ vue, setVue, acces, profil, programmes, onEditProfil, onDeconnexion, onCode }) {
   const items = [
     { id: 'accueil', label: VOCAB.navigation.accueil },
     { id: 'postures', label: VOCAB.posture.pluriel },
@@ -2061,6 +2061,10 @@ function Navigation({ vue, setVue, acces, profil, programmes, onEditProfil, onDe
               <User size={16} />
             </button>
           )}
+          {/* Saisir un code (ex. code admin) sans avoir à se déconnecter */}
+          <button onClick={onCode} className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-105" style={{ background: 'rgba(193, 157, 11, 0.2)', color: COLORS.secondary }} title="Saisir un code">
+            <KeyRound size={16} />
+          </button>
 
           {/* Accès admin dashboard */}
   {acces && profil?.email === CLIENT.emailContact && ( 
