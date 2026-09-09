@@ -3613,41 +3613,47 @@ function AdminSeances({ seances, setSeances, postures }) {
               className="w-full px-4 py-2 rounded-xl mb-2"
               style={{ background: COLORS.backgroundWhite, border: '1px solid rgba(193,157,11,0.3)', color: COLORS.textDark, outline: 'none' }}
             />
-            <div className="flex gap-1.5 flex-wrap mb-2">
-              {[{ id: 'toutes', label: 'Toutes les zones' }, ...VOCAB.objectifs.liste].map((z) => (
-                <button
-                  key={z.id}
-                  onClick={() => setFiltreZoneExercice(z.id)}
-                  className="px-3 py-1 rounded-full text-xs"
-                  style={{
-                    background: filtreZoneExercice === z.id ? COLORS.secondary : COLORS.backgroundWhite,
-                    color: filtreZoneExercice === z.id ? COLORS.backgroundCream : COLORS.textDark,
-                    border: '1px solid rgba(193,157,11,0.3)',
-                  }}
-                >
-                  {z.icone ? `${z.icone} ` : ''}{z.label}
-                </button>
-              ))}
+            <div className="p-3 rounded-xl mb-2" style={{ background: COLORS.backgroundGrayLight, border: '1px solid rgba(193,157,11,0.2)' }}>
+              <p className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: COLORS.textMedium }}>Filtrer par zone</p>
+              <div className="flex gap-1.5 flex-wrap">
+                {[{ id: 'toutes', label: 'Toutes les zones' }, ...VOCAB.objectifs.liste].map((z) => (
+                  <button
+                    key={z.id}
+                    onClick={() => setFiltreZoneExercice(z.id)}
+                    className="px-3 py-1 rounded-full text-xs"
+                    style={{
+                      background: filtreZoneExercice === z.id ? COLORS.secondary : COLORS.backgroundWhite,
+                      color: filtreZoneExercice === z.id ? COLORS.backgroundCream : COLORS.textDark,
+                      border: '1px solid rgba(193,157,11,0.3)',
+                    }}
+                  >
+                    {z.icone ? `${z.icone} ` : ''}{z.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-1.5 flex-wrap mb-3">
-              {[
-                { id: 'peu_importe', label: '✨ Peu importe' },
-                { id: 'sans', label: '🧍 Sans matériel' },
-                { id: 'avec', label: '🏋️ Avec matériel' },
-              ].map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setFiltreMaterielExercice(m.id)}
-                  className="px-3 py-1 rounded-full text-xs"
-                  style={{
-                    background: filtreMaterielExercice === m.id ? COLORS.secondary : COLORS.backgroundWhite,
-                    color: filtreMaterielExercice === m.id ? COLORS.backgroundCream : COLORS.textDark,
-                    border: '1px solid rgba(193,157,11,0.3)',
-                  }}
-                >
-                  {m.label}
-                </button>
-              ))}
+            <div className="p-3 rounded-xl mb-3" style={{ background: COLORS.backgroundGrayLight, border: '1px solid rgba(193,157,11,0.2)' }}>
+              <p className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: COLORS.textMedium }}>Filtrer par matériel</p>
+              <div className="flex gap-1.5 flex-wrap">
+                {[
+                  { id: 'peu_importe', label: '✨ Peu importe' },
+                  { id: 'sans', label: '🧍 Sans matériel' },
+                  { id: 'avec', label: '🏋️ Avec matériel' },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setFiltreMaterielExercice(m.id)}
+                    className="px-3 py-1 rounded-full text-xs"
+                    style={{
+                      background: filtreMaterielExercice === m.id ? COLORS.secondary : COLORS.backgroundWhite,
+                      color: filtreMaterielExercice === m.id ? COLORS.backgroundCream : COLORS.textDark,
+                      border: '1px solid rgba(193,157,11,0.3)',
+                    }}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <p className="text-[10px] mb-2" style={{ color: COLORS.textMuted }}>{posturesFiltrees.length} exercice{posturesFiltrees.length > 1 ? 's' : ''}</p>
             <div className="flex gap-2 flex-wrap">
@@ -3903,41 +3909,47 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
                           className="w-full px-3 py-1.5 rounded-lg text-xs mb-1.5"
                           style={{ background: 'white', border: '1px solid rgba(193,157,11,0.25)', color: COLORS.textDark, outline: 'none' }}
                         />
-                        <div className="flex gap-1 flex-wrap mb-1.5">
-                          {[{ id: 'toutes', label: 'Toutes les zones' }, ...VOCAB.objectifs.liste].map((z) => (
-                            <button
-                              key={z.id}
-                              onClick={() => setFiltreZoneExercice(z.id)}
-                              className="px-2 py-0.5 rounded-full text-[10px]"
-                              style={{
-                                background: filtreZoneExercice === z.id ? COLORS.secondary : 'white',
-                                color: filtreZoneExercice === z.id ? COLORS.backgroundCream : COLORS.textDark,
-                                border: '1px solid rgba(193,157,11,0.25)',
-                              }}
-                            >
-                              {z.icone ? `${z.icone} ` : ''}{z.label}
-                            </button>
-                          ))}
+                        <div className="p-2 rounded-lg mb-1.5" style={{ background: 'white', border: '1px solid rgba(193,157,11,0.2)' }}>
+                          <p className="text-[9px] uppercase tracking-wide mb-1" style={{ color: COLORS.textMedium }}>Zone</p>
+                          <div className="flex gap-1 flex-wrap">
+                            {[{ id: 'toutes', label: 'Toutes les zones' }, ...VOCAB.objectifs.liste].map((z) => (
+                              <button
+                                key={z.id}
+                                onClick={() => setFiltreZoneExercice(z.id)}
+                                className="px-2 py-0.5 rounded-full text-[10px]"
+                                style={{
+                                  background: filtreZoneExercice === z.id ? COLORS.secondary : COLORS.backgroundGrayLight,
+                                  color: filtreZoneExercice === z.id ? COLORS.backgroundCream : COLORS.textDark,
+                                  border: '1px solid rgba(193,157,11,0.25)',
+                                }}
+                              >
+                                {z.icone ? `${z.icone} ` : ''}{z.label}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                        <div className="flex gap-1 flex-wrap">
-                          {[
-                            { id: 'peu_importe', label: '✨ Peu importe' },
-                            { id: 'sans', label: '🧍 Sans matériel' },
-                            { id: 'avec', label: '🏋️ Avec matériel' },
-                          ].map((m) => (
-                            <button
-                              key={m.id}
-                              onClick={() => setFiltreMaterielExercice(m.id)}
-                              className="px-2 py-0.5 rounded-full text-[10px]"
-                              style={{
-                                background: filtreMaterielExercice === m.id ? COLORS.secondary : 'white',
-                                color: filtreMaterielExercice === m.id ? COLORS.backgroundCream : COLORS.textDark,
-                                border: '1px solid rgba(193,157,11,0.25)',
-                              }}
-                            >
-                              {m.label}
-                            </button>
-                          ))}
+                        <div className="p-2 rounded-lg" style={{ background: 'white', border: '1px solid rgba(193,157,11,0.2)' }}>
+                          <p className="text-[9px] uppercase tracking-wide mb-1" style={{ color: COLORS.textMedium }}>Matériel</p>
+                          <div className="flex gap-1 flex-wrap">
+                            {[
+                              { id: 'peu_importe', label: '✨ Peu importe' },
+                              { id: 'sans', label: '🧍 Sans matériel' },
+                              { id: 'avec', label: '🏋️ Avec matériel' },
+                            ].map((m) => (
+                              <button
+                                key={m.id}
+                                onClick={() => setFiltreMaterielExercice(m.id)}
+                                className="px-2 py-0.5 rounded-full text-[10px]"
+                                style={{
+                                  background: filtreMaterielExercice === m.id ? COLORS.secondary : COLORS.backgroundGrayLight,
+                                  color: filtreMaterielExercice === m.id ? COLORS.backgroundCream : COLORS.textDark,
+                                  border: '1px solid rgba(193,157,11,0.25)',
+                                }}
+                              >
+                                {m.label}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                         <p className="text-[9px] mt-1" style={{ color: COLORS.textMuted }}>
                           Recherche/filtre partagés pour tous les jours ({posturesFiltrees.length} résultat{posturesFiltrees.length > 1 ? 's' : ''})
