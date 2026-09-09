@@ -3202,8 +3202,13 @@ function AdminExercices({ postures }) {
   const [recherche, setRecherche] = useState('');
   const [modesLocaux, setModesLocaux] = useState({}); // id -> mode, pour affichage optimiste
   const [enregistrementId, setEnregistrementId] = useState(null);
+  // Valeurs locales des champs séries/répétitions en cours d'édition, avant
+  // sauvegarde (au blur) — évite de sauvegarder à chaque frappe de touche.
+  const [champsLocaux, setChampsLocaux] = useState({}); // id -> { series, reps }
 
   const modeDe = (p) => modesLocaux[p.id] ?? p.modeCompletion ?? 'temps';
+  const seriesDe = (p) => champsLocaux[p.id]?.series ?? p.seriesRecommandees ?? '';
+  const repsDe = (p) => champsLocaux[p.id]?.reps ?? p.repetitionsRecommandees ?? '';
 
   const changerMode = async (p, nouveauMode) => {
     setEnregistrementId(p.id);
@@ -3220,16 +3225,35 @@ function AdminExercices({ postures }) {
     }
   };
 
+  const modifierChampLocal = (p, champ, valeur) => {
+    setChampsLocaux((c) => ({ ...c, [p.id]: { ...c[p.id], [champ]: valeur } }));
+  };
+
+  // Sauvegarde au blur (quand on quitte le champ), pas à chaque frappe
+  const sauvegarderSeriesReps = async (p) => {
+    const series = champsLocaux[p.id]?.series ?? p.seriesRecommandees ?? '';
+    const reps = champsLocaux[p.id]?.reps ?? p.repetitionsRecommandees ?? '';
+    setEnregistrementId(p.id);
+    const { error } = await supabase
+      .from('postures')
+      .update({ series_recommandees: series || null, repetitions_recommandees: reps || null })
+      .eq('id', p.id);
+    setEnregistrementId(null);
+    if (error) console.error('Erreur sauvegarde séries/répétitions:', error);
+  };
+
   const posturesFiltrees = postures.filter((p) =>
     !recherche || p.nomFr?.toLowerCase().includes(recherche.toLowerCase())
   );
 
   return (
     <div>
-      <h2 className="font-bold text-2xl mb-2" style={{ color: COLORS.secondary }}>Exercices — Mode de complétion</h2>
+      <h2 className="font-bold text-2xl mb-2" style={{ color: COLORS.secondary }}>Exercices — Mode et objectif</h2>
       <p className="text-sm mb-6" style={{ color: COLORS.textMedium }}>
         Choisis, pour chaque exercice, s'il se termine au chronomètre (comportement par défaut)
         ou par validation manuelle des répétitions (l'utilisateur clique "J'ai terminé" au lieu d'attendre un décompte).
+        Renseigne aussi le nombre de séries et de répétitions à viser (ex. 3 séries × 10-15 répétitions) —
+        affiché sur la fiche de l'exercice et pendant la séance.
       </p>
 
       <input
@@ -3284,6 +3308,27 @@ function AdminExercices({ postures }) {
                 >
                   🎯 Répétitions
                 </button>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <input
+                  type="text"
+                  placeholder="séries"
+                  value={seriesDe(p)}
+                  onChange={(e) => modifierChampLocal(p, 'series', e.target.value)}
+                  onBlur={() => sauvegarderSeriesReps(p)}
+                  className="w-16 px-2 py-1.5 rounded-lg text-xs text-center"
+                  style={{ border: '1px solid rgba(193,157,11,0.3)' }}
+                />
+                <span className="text-xs" style={{ color: COLORS.textMuted }}>×</span>
+                <input
+                  type="text"
+                  placeholder="reps (ex. 10-15)"
+                  value={repsDe(p)}
+                  onChange={(e) => modifierChampLocal(p, 'reps', e.target.value)}
+                  onBlur={() => sauvegarderSeriesReps(p)}
+                  className="w-24 px-2 py-1.5 rounded-lg text-xs text-center"
+                  style={{ border: '1px solid rgba(193,157,11,0.3)' }}
+                />
               </div>
             </div>
           );
@@ -3453,11 +3498,15 @@ function AdminSeances({ seances, setSeances, postures }) {
   const [form, setForm] = useState(null);
   const [rechercheExercice, setRechercheExercice] = useState('');
   const [filtreZoneExercice, setFiltreZoneExercice] = useState('toutes');
+  const [filtreMaterielExercice, setFiltreMaterielExercice] = useState('peu_importe');
 
   const posturesFiltrees = postures.filter((p) => {
     const matchRecherche = !rechercheExercice || p.nomFr?.toLowerCase().includes(rechercheExercice.toLowerCase());
     const matchZone = filtreZoneExercice === 'toutes' || p.objectifs?.includes(filtreZoneExercice);
-    return matchRecherche && matchZone;
+    const matchMateriel = filtreMaterielExercice === 'peu_importe'
+      || (filtreMaterielExercice === 'sans' && !p.avecMateriel)
+      || (filtreMaterielExercice === 'avec' && p.avecMateriel);
+    return matchRecherche && matchZone && matchMateriel;
   });
 
   const nouvelle = () => {
@@ -3564,7 +3613,7 @@ function AdminSeances({ seances, setSeances, postures }) {
               className="w-full px-4 py-2 rounded-xl mb-2"
               style={{ background: COLORS.backgroundWhite, border: '1px solid rgba(193,157,11,0.3)', color: COLORS.textDark, outline: 'none' }}
             />
-            <div className="flex gap-1.5 flex-wrap mb-3">
+            <div className="flex gap-1.5 flex-wrap mb-2">
               {[{ id: 'toutes', label: 'Toutes les zones' }, ...VOCAB.objectifs.liste].map((z) => (
                 <button
                   key={z.id}
@@ -3577,6 +3626,26 @@ function AdminSeances({ seances, setSeances, postures }) {
                   }}
                 >
                   {z.icone ? `${z.icone} ` : ''}{z.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1.5 flex-wrap mb-3">
+              {[
+                { id: 'peu_importe', label: '✨ Peu importe' },
+                { id: 'sans', label: '🧍 Sans matériel' },
+                { id: 'avec', label: '🏋️ Avec matériel' },
+              ].map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => setFiltreMaterielExercice(m.id)}
+                  className="px-3 py-1 rounded-full text-xs"
+                  style={{
+                    background: filtreMaterielExercice === m.id ? COLORS.secondary : COLORS.backgroundWhite,
+                    color: filtreMaterielExercice === m.id ? COLORS.backgroundCream : COLORS.textDark,
+                    border: '1px solid rgba(193,157,11,0.3)',
+                  }}
+                >
+                  {m.label}
                 </button>
               ))}
             </div>
@@ -3651,11 +3720,15 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
   const [erreur, setErreur] = useState('');
   const [rechercheExercice, setRechercheExercice] = useState('');
   const [filtreZoneExercice, setFiltreZoneExercice] = useState('toutes');
+  const [filtreMaterielExercice, setFiltreMaterielExercice] = useState('peu_importe');
 
   const posturesFiltrees = postures.filter((p) => {
     const matchRecherche = !rechercheExercice || p.nomFr?.toLowerCase().includes(rechercheExercice.toLowerCase());
     const matchZone = filtreZoneExercice === 'toutes' || p.objectifs?.includes(filtreZoneExercice);
-    return matchRecherche && matchZone;
+    const matchMateriel = filtreMaterielExercice === 'peu_importe'
+      || (filtreMaterielExercice === 'sans' && !p.avecMateriel)
+      || (filtreMaterielExercice === 'avec' && p.avecMateriel);
+    return matchRecherche && matchZone && matchMateriel;
   });
 
   const nouveau = () => {
@@ -3830,7 +3903,7 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
                           className="w-full px-3 py-1.5 rounded-lg text-xs mb-1.5"
                           style={{ background: 'white', border: '1px solid rgba(193,157,11,0.25)', color: COLORS.textDark, outline: 'none' }}
                         />
-                        <div className="flex gap-1 flex-wrap">
+                        <div className="flex gap-1 flex-wrap mb-1.5">
                           {[{ id: 'toutes', label: 'Toutes les zones' }, ...VOCAB.objectifs.liste].map((z) => (
                             <button
                               key={z.id}
@@ -3843,6 +3916,26 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
                               }}
                             >
                               {z.icone ? `${z.icone} ` : ''}{z.label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex gap-1 flex-wrap">
+                          {[
+                            { id: 'peu_importe', label: '✨ Peu importe' },
+                            { id: 'sans', label: '🧍 Sans matériel' },
+                            { id: 'avec', label: '🏋️ Avec matériel' },
+                          ].map((m) => (
+                            <button
+                              key={m.id}
+                              onClick={() => setFiltreMaterielExercice(m.id)}
+                              className="px-2 py-0.5 rounded-full text-[10px]"
+                              style={{
+                                background: filtreMaterielExercice === m.id ? COLORS.secondary : 'white',
+                                color: filtreMaterielExercice === m.id ? COLORS.backgroundCream : COLORS.textDark,
+                                border: '1px solid rgba(193,157,11,0.25)',
+                              }}
+                            >
+                              {m.label}
                             </button>
                           ))}
                         </div>
