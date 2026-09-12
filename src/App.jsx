@@ -2377,6 +2377,7 @@ function SeanceEnCours({ seance, onClose, profil, postures, utilisateur, onTermi
   // programme précis (ex. planche 20s au jour 1, 5 min au jour 30) — sinon
   // on retombe sur la durée par défaut de l'exercice en base.
   const dureeEffective = (p) => seance.dureesOverride?.[p.id] ?? p.duree;
+  const repsEffectif = (p) => seance.repsOverride?.[p.id] ?? p.repetitionsRecommandees ?? '10-15';
   const tempsReposParDefaut = Number(seance.tempsRepos) || 0;
   const [indexActuel, setIndexActuel] = useState(0);
   const [tempsRestant, setTempsRestant] = useState(dureeEffective(posturesS[0]));
@@ -2559,7 +2560,7 @@ function SeanceEnCours({ seance, onClose, profil, postures, utilisateur, onTermi
     {postureActuelle.modeCompletion === 'repetitions' ? (
       <>
         <p className="font-display text-3xl mb-2" style={{ color: COLORS.textDark }}>
-          🎯 {postureActuelle.repetitionsRecommandees || '10-15'} répétitions
+          🎯 {repsEffectif(postureActuelle)} répétitions
         </p>
         <button
           onClick={passerSuivant}
@@ -2722,6 +2723,7 @@ function Programme({ joursTermines, setJoursTermines, aAccesComplet, onUnlock, p
             .slice(0, Math.max(3, Math.round(j.duree * 60 / 90)))
             .map(p => p.id),
   dureesOverride: j.dureesPersonnalisees || {},
+  repsOverride: j.repsPersonnalisees || {},
   tempsRepos: Number(j.tempsRepos) || 0,
   onTermine: () => toggleJour(j),
 });
@@ -3740,17 +3742,17 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
   const nouveau = () => {
     setEditId('nouveau');
     setErreur('');
-    setForm({ id: '', titre: '', sousTitre: '', description: '', jours: [{ titre: '', duree: 5, gratuit: true, postures: [], dureesPersonnalisees: {}, tempsRepos: 0 }] });
+    setForm({ id: '', titre: '', sousTitre: '', description: '', jours: [{ titre: '', duree: 5, gratuit: true, postures: [], dureesPersonnalisees: {}, repsPersonnalisees: {}, tempsRepos: 0 }] });
   };
   const editer = (p) => {
     setEditId(p.id);
     setErreur('');
-    setForm({ id: p.id, titre: p.titre, sousTitre: p.sousTitre, description: p.description, jours: p.jours.map((j) => ({ titre: j.titre, duree: j.duree, gratuit: j.gratuit, postures: j.postures || [], dureesPersonnalisees: j.dureesPersonnalisees || {}, tempsRepos: j.tempsRepos || 0 })) });
+    setForm({ id: p.id, titre: p.titre, sousTitre: p.sousTitre, description: p.description, jours: p.jours.map((j) => ({ titre: j.titre, duree: j.duree, gratuit: j.gratuit, postures: j.postures || [], dureesPersonnalisees: j.dureesPersonnalisees || {}, repsPersonnalisees: j.repsPersonnalisees || {}, tempsRepos: j.tempsRepos || 0 })) });
   };
   const annuler = () => { setForm(null); setEditId(null); };
 
   const ajouterJour = () => {
-    setForm({ ...form, jours: [...form.jours, { titre: '', duree: 5, gratuit: false, postures: [], dureesPersonnalisees: {}, tempsRepos: 0 }] });
+    setForm({ ...form, jours: [...form.jours, { titre: '', duree: 5, gratuit: false, postures: [], dureesPersonnalisees: {}, repsPersonnalisees: {}, tempsRepos: 0 }] });
   };
   const supprimerJour = (index) => {
     setForm({ ...form, jours: form.jours.filter((_, i) => i !== index) });
@@ -3781,6 +3783,21 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
     jours[index] = { ...jours[index], dureesPersonnalisees };
     setForm({ ...form, jours });
   };
+  // Objectif de répétitions personnalisé pour un exercice précis, un jour
+  // précis (ex. saut jack : 30 reps au jour 1, 400 reps au jour 30), sans
+  // dupliquer l'exercice en base — même principe que la durée personnalisée
+  // ci-dessus, mais pour les exercices en mode "répétitions".
+  const modifierRepsPersonnalisee = (index, pid, valeur) => {
+    const jours = [...form.jours];
+    const repsPersonnalisees = { ...(jours[index].repsPersonnalisees || {}) };
+    if (valeur === '' || valeur === null) {
+      delete repsPersonnalisees[pid];
+    } else {
+      repsPersonnalisees[pid] = valeur;
+    }
+    jours[index] = { ...jours[index], repsPersonnalisees };
+    setForm({ ...form, jours });
+  };
 
   const enregistrer = async () => {
     setErreur('');
@@ -3788,7 +3805,7 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
     const joursValides = form.jours.filter((j) => j.titre.trim());
     if (joursValides.length === 0) { setErreur('Renseignez au moins un jour avec un titre.'); return; }
     const id = form.id.trim() || 'prog-' + form.titre.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 15);
-    const jours = joursValides.map((j, i) => ({ jour: i + 1, titre: j.titre.trim(), duree: Number(j.duree) || 5, gratuit: !!j.gratuit, postures: j.postures || [], dureesPersonnalisees: j.dureesPersonnalisees || {}, tempsRepos: Number(j.tempsRepos) || 0 }));
+    const jours = joursValides.map((j, i) => ({ jour: i + 1, titre: j.titre.trim(), duree: Number(j.duree) || 5, gratuit: !!j.gratuit, postures: j.postures || [], dureesPersonnalisees: j.dureesPersonnalisees || {}, repsPersonnalisees: j.repsPersonnalisees || {}, tempsRepos: Number(j.tempsRepos) || 0 }));
     const progFinal = { id, titre: form.titre, sousTitre: form.sousTitre || 'Programme', description: form.description, jours };
 
     // Sauvegarde en base Supabase (upsert : crée ou met à jour selon le slug)
@@ -3976,25 +3993,43 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
                   {j.postures.length > 0 && (
                     <div className="w-full mt-3">
                       <p className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: COLORS.textMedium }}>
-                        Durée personnalisée pour ce jour (optionnel — ex. planche 20s au jour 1, 5 min au jour 30, sans dupliquer l'exercice)
+                        Personnalisation pour ce jour (optionnel — ex. planche 20s au jour 1 → 5 min au jour 30, ou 30 répétitions au jour 1 → 400 au jour 30, sans dupliquer l'exercice)
                       </p>
                       <div className="flex flex-col gap-1.5">
                         {j.postures.map((pid) => {
                           const p = postures.find((x) => x.id === pid);
                           if (!p) return null;
+                          const enModeRepetitions = p.modeCompletion === 'repetitions';
                           return (
                             <div key={pid} className="flex items-center gap-2 text-xs">
                               <span style={{ color: COLORS.textDark, minWidth: '140px' }}>{p.icone} {p.nomFr}</span>
-                              <input
-                                type="number"
-                                min="1"
-                                placeholder={`défaut : ${p.duree}s`}
-                                value={j.dureesPersonnalisees?.[pid] ?? ''}
-                                onChange={(e) => modifierDureePersonnalisee(i, pid, e.target.value)}
-                                className="w-24 px-2 py-1 rounded-lg border"
-                                style={{ borderColor: 'rgba(193,157,11,0.3)' }}
-                              />
-                              <span style={{ color: COLORS.textMedium }}>secondes</span>
+                              {enModeRepetitions ? (
+                                <>
+                                  <span className="text-xs">🎯</span>
+                                  <input
+                                    type="text"
+                                    placeholder={`défaut : ${p.repetitionsRecommandees || '10-15'}`}
+                                    value={j.repsPersonnalisees?.[pid] ?? ''}
+                                    onChange={(e) => modifierRepsPersonnalisee(i, pid, e.target.value)}
+                                    className="w-28 px-2 py-1 rounded-lg border"
+                                    style={{ borderColor: 'rgba(193,157,11,0.3)' }}
+                                  />
+                                  <span style={{ color: COLORS.textMedium }}>répétitions</span>
+                                </>
+                              ) : (
+                                <>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    placeholder={`défaut : ${p.duree}s`}
+                                    value={j.dureesPersonnalisees?.[pid] ?? ''}
+                                    onChange={(e) => modifierDureePersonnalisee(i, pid, e.target.value)}
+                                    className="w-24 px-2 py-1 rounded-lg border"
+                                    style={{ borderColor: 'rgba(193,157,11,0.3)' }}
+                                  />
+                                  <span style={{ color: COLORS.textMedium }}>secondes</span>
+                                </>
+                              )}
                             </div>
                           );
                         })}
