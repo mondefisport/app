@@ -65,7 +65,7 @@ function Onboarding({ user, onComplete }) {
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 max-h-[90vh] overflow-y-auto">
         
         <div className="text-center mb-6">
-          <div className="text-5xl mb-2">🪷</div>
+          <div className="text-5xl mb-2">⚡</div>
           <h2 className="font-bold text-2xl mb-2" style={{ color: COLORS.secondary }}>
             Bienvenue dans {CLIENT.nom}
           </h2>
@@ -170,7 +170,7 @@ function Onboarding({ user, onComplete }) {
             className="w-full py-3 rounded-full font-medium transition-all hover:shadow-lg disabled:opacity-50"
             style={{ backgroundColor: COLORS.secondary, color: COLORS.backgroundCreamLight }}
           >
-            {enCours ? 'Création...' : 'Commencer ma pratique 🪷'}
+            {enCours ? 'Création...' : 'Commencer ma séance ⚡'}
           </button>
         </form>
 
@@ -957,7 +957,7 @@ function DashboardRH({ onClose }) {
 
         {chargement ? (
           <div className="text-center py-20">
-            <div className="text-6xl mb-4 animate-pulse">🪷</div>
+            <div className="text-6xl mb-4 animate-pulse">⚡</div>
             <p style={{ color: COLORS.textMedium }}>Chargement des statistiques...</p>
           </div>
         ) : !stats ? (
@@ -1423,7 +1423,7 @@ useEffect(() => {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: COLORS.backgroundCreamLight }}>
         <div className="text-center">
-          <div className="text-6xl mb-4 animate-pulse">🪷</div>
+          <div className="text-6xl mb-4 animate-pulse">⚡</div>
           <p style={{ color: COLORS.textMedium }}>Chargement...</p>
         </div>
       </div>
@@ -1441,7 +1441,7 @@ useEffect(() => {
       <div className="min-h-screen flex items-center justify-center"
            style={{ backgroundColor: COLORS.backgroundCreamLight }}>
         <div className="text-center">
-          <div className="text-6xl mb-4 animate-pulse">🪷</div>
+          <div className="text-6xl mb-4 animate-pulse">⚡</div>
           <p style={{ color: COLORS.textMedium }}>Chargement...</p>
         </div>
       </div>
@@ -1640,7 +1640,7 @@ if (utilisateur && !chargementProfil && profilUtilisateur === null) {
     style={{ background: 'rgba(30,41,89,0.97)', backdropFilter: 'blur(8px)' }}
   >
     <div className="max-w-lg mx-auto flex items-center gap-3">
-      <span className="text-2xl flex-shrink-0">🪷</span>
+      <span className="text-2xl flex-shrink-0">⚡</span>
       <div className="flex-1">
         <p className="text-sm font-medium" style={{ color: COLORS.backgroundCreamLight }}>
           Installer {CLIENT.nom} sur votre téléphone
@@ -1769,7 +1769,7 @@ const valider = async () => {
     if (data.is_admin) {
       onSuccess('admin');
     } else {
-      onSuccess({ entreprise: data.libelle, logo: '🪷' });
+      onSuccess({ entreprise: data.libelle, logo: '⚡' });
     }
   };
 
@@ -2147,7 +2147,7 @@ return (
       className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-base font-medium"
       style={{ background: 'rgba(193, 157, 11, 0.08)', color: COLORS.primary }}
     >
-      🪷 {statsSeances.semaine > 0
+      💪 {statsSeances.semaine > 0
         ? `${statsSeances.semaine} séance${statsSeances.semaine > 1 ? 's' : ''} cette semaine`
         : `${statsSeances.total} séance${statsSeances.total > 1 ? 's' : ''} au total`
       }
@@ -2608,7 +2608,7 @@ function SeanceEnCours({ seance, onClose, profil, postures, utilisateur, onTermi
   >
     {estDerniere ? (
       <span className="text-sm" style={{ color: COLORS.primary }}>
-        🪷 Dernière posture
+        💪 Dernier exercice
       </span>
     ) : (
       <>
@@ -3070,7 +3070,7 @@ const filtreNiveau = (p) => {
         <div className="max-w-2xl mx-auto fade-up text-center">
           <p className="text-xs tracking-[0.3em] uppercase mb-3" style={{ color: COLORS.primary }}>Voici ta séance</p>
           <h3 className="font-display text-4xl mb-4" style={{ color: COLORS.textDark }}>
-            Sur mesure <em style={{ color: COLORS.primary }}>pour toi</em> 🪷
+            Sur mesure <em style={{ color: COLORS.primary }}>pour toi</em> ⚡
           </h3>
           <p className="mb-8" style={{ color: COLORS.textMedium }}>
             {seanceGeneree.duree} · {objectifsChoisis.map(id => objectifs.find(o => o.id === id)?.label).join(' + ')} · {niveau === 'premier' ? 'Premier cours' : niveau === 'debutant' ? 'Débutant' : 'Confirmé'}
