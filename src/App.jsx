@@ -3215,10 +3215,12 @@ function AdminExercices({ postures }) {
   const changerMode = async (p, nouveauMode) => {
     setEnregistrementId(p.id);
     setModesLocaux((m) => ({ ...m, [p.id]: nouveauMode }));
+    // ⚠️ p.id contient en réalité le slug (voir chargerPostures : id: p.slug),
+    // pas l'id numérique réel de la table — d'où .eq('slug', ...) et non .eq('id', ...).
     const { error } = await supabase
       .from('postures')
       .update({ mode_completion: nouveauMode })
-      .eq('id', p.id);
+      .eq('slug', p.id);
     setEnregistrementId(null);
     if (error) {
       console.error('Erreur changement de mode:', error);
@@ -3239,7 +3241,7 @@ function AdminExercices({ postures }) {
     const { error } = await supabase
       .from('postures')
       .update({ series_recommandees: series || null, repetitions_recommandees: reps || null })
-      .eq('id', p.id);
+      .eq('slug', p.id);
     setEnregistrementId(null);
     if (error) console.error('Erreur sauvegarde séries/répétitions:', error);
   };
