@@ -3731,6 +3731,25 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
   const [rechercheExercice, setRechercheExercice] = useState('');
   const [filtreZoneExercice, setFiltreZoneExercice] = useState('toutes');
   const [filtreMaterielExercice, setFiltreMaterielExercice] = useState('peu_importe');
+  // Override local du mode temps/répétitions, modifiable directement depuis
+  // cet écran sans avoir à passer par l'onglet Exercices — voir modeDe/changerModeExercice.
+  const [modesLocauxProgrammes, setModesLocauxProgrammes] = useState({});
+
+  const modeDe = (p) => modesLocauxProgrammes[p.id] ?? p.modeCompletion ?? 'temps';
+
+  const changerModeExercice = async (p, nouveauMode) => {
+    setModesLocauxProgrammes((m) => ({ ...m, [p.id]: nouveauMode }));
+    // ⚠️ p.id contient le slug (voir chargerPostures : id: p.slug), pas l'id
+    // numérique réel de la table — d'où .eq('slug', ...) et non .eq('id', ...).
+    const { error } = await supabase
+      .from('postures')
+      .update({ mode_completion: nouveauMode })
+      .eq('slug', p.id);
+    if (error) {
+      console.error('Erreur changement de mode:', error);
+      setModesLocauxProgrammes((m) => { const c = { ...m }; delete c[p.id]; return c; });
+    }
+  };
 
   const posturesFiltrees = postures.filter((p) => {
     const matchRecherche = !rechercheExercice || p.nomFr?.toLowerCase().includes(rechercheExercice.toLowerCase());
@@ -3840,6 +3859,83 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
     setProgrammes(programmes.filter((p) => p.id !== id));
   };
 
+  // Fonction d'aide : redimensionne une valeur (nombre simple ou plage
+  // "10-15") selon un facteur, sans jamais descendre sous 1.
+  const redimensionnerValeur = (valeur, facteur) => {
+    if (valeur === undefined || valeur === null || valeur === '') return valeur;
+    const plage = String(valeur).match(/^(\d+)\s*-\s*(\d+)$/);
+    if (plage) {
+      const a = Math.max(1, Math.round(Number(plage[1]) * facteur));
+      const b = Math.max(1, Math.round(Number(plage[2]) * facteur));
+      return `${a}-${b}`;
+    }
+    const n = Number(valeur);
+    if (!isNaN(n)) return Math.max(1, Math.round(n * facteur));
+    return valeur;
+  };
+
+  // Génère 2 nouveaux programmes (Novice -50%, Difficile +50%) à partir
+  // d'un programme existant considéré comme le niveau "Intermédiaire".
+  // Pour chaque exercice de chaque jour, la valeur de base (surchargée ou,
+  // à défaut, celle de l'exercice lui-même) est redimensionnée et stockée
+  // comme surcharge du nouveau programme — l'exercice partagé en base
+  // n'est jamais modifié.
+  const genererNiveaux = async (programmeBase) => {
+    if (!window.confirm(`Générer les versions Novice (-50%) et Difficile (+50%) de "${programmeBase.titre}" ?\n\nLe programme actuel sera renommé "${programmeBase.titre} (Intermédiaire)".`)) return;
+
+    const construireVariante = (suffixe, facteur) => {
+      const jours = programmeBase.jours.map((j) => {
+        const dureesPersonnalisees = {};
+        const repsPersonnalisees = {};
+        (j.postures || []).forEach((pid) => {
+          const p = postures.find((x) => x.id === pid);
+          if (!p) return;
+          if (modeDe(p) === 'repetitions') {
+            const base = j.repsPersonnalisees?.[pid] ?? p.repetitionsRecommandees ?? '10-15';
+            repsPersonnalisees[pid] = redimensionnerValeur(base, facteur);
+          } else {
+            const base = j.dureesPersonnalisees?.[pid] ?? p.duree;
+            dureesPersonnalisees[pid] = redimensionnerValeur(base, facteur);
+          }
+        });
+        return {
+          ...j,
+          titre: `${j.titre} (${suffixe})`,
+          dureesPersonnalisees,
+          repsPersonnalisees,
+        };
+      });
+      return {
+        slug: `${programmeBase.id}-${suffixe.toLowerCase()}`,
+        titre: `${programmeBase.titre} (${suffixe})`,
+        sous_titre: programmeBase.sousTitre,
+        description: `${programmeBase.description || ''} — Version ${suffixe}.`,
+        jours,
+      };
+    };
+
+    const variantes = [construireVariante('Novice', 0.5), construireVariante('Difficile', 1.5)];
+
+    for (const v of variantes) {
+      const { error } = await supabase.from('programmes').upsert(v, { onConflict: 'slug' });
+      if (error) { console.error('Erreur création variante:', error); alert(`Erreur lors de la création de la version ${v.titre}.`); return; }
+    }
+
+    // Renomme le programme d'origine pour clarifier qu'il devient la version Intermédiaire
+    const nouveauTitre = `${programmeBase.titre} (Intermédiaire)`;
+    const { error: errRename } = await supabase
+      .from('programmes')
+      .update({ titre: nouveauTitre })
+      .eq('slug', programmeBase.id);
+    if (errRename) console.error('Erreur renommage programme original:', errRename);
+
+    setProgrammes((progs) => [
+      ...progs.map((p) => (p.id === programmeBase.id ? { ...p, titre: nouveauTitre } : p)),
+      ...variantes.map((v) => ({ id: v.slug, titre: v.titre, sousTitre: v.sous_titre, description: v.description, jours: v.jours })),
+    ]);
+    alert('Les 3 niveaux ont été créés avec succès.');
+  };
+
   return (
     <div className="fade-up">
       <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
@@ -3914,9 +4010,64 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
                       <Trash2 size={13} />
                     </button>
                   )}
-                  <div className="w-full mt-2">
+                  {j.postures.length > 0 && (
+                    <div className="w-full mt-3">
+                      <p className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: COLORS.textMedium }}>
+                        Personnalisation pour ce jour (optionnel — ex. planche 20s au jour 1 → 5 min au jour 30, ou 30 répétitions au jour 1 → 400 au jour 30, sans dupliquer l'exercice)
+                      </p>
+                      <div className="flex flex-col gap-1.5">
+                        {j.postures.map((pid) => {
+                          const p = postures.find((x) => x.id === pid);
+                          if (!p) return null;
+                          const enModeRepetitions = modeDe(p) === 'repetitions';
+                          return (
+                            <div key={pid} className="flex items-center gap-2 text-xs flex-wrap">
+                              <span style={{ color: COLORS.textDark, minWidth: '140px' }}>{p.icone} {p.nomFr}</span>
+                              {/* Bascule mode temps/répétitions directement ici, sans changer d'onglet */}
+                              <button
+                                onClick={() => changerModeExercice(p, enModeRepetitions ? 'temps' : 'repetitions')}
+                                className="px-2 py-1 rounded-lg text-[10px]"
+                                style={{ background: COLORS.backgroundGrayLight, color: COLORS.textMedium, border: '1px solid rgba(193,157,11,0.25)' }}
+                                title="Changer le mode de cet exercice (temps ↔ répétitions)"
+                              >
+                                {enModeRepetitions ? '🎯 Répétitions' : '⏱ Temps'} — changer
+                              </button>
+                              {enModeRepetitions ? (
+                                <>
+                                  <span className="text-xs">🎯</span>
+                                  <input
+                                    type="text"
+                                    placeholder={`défaut : ${p.repetitionsRecommandees || '10-15'}`}
+                                    value={j.repsPersonnalisees?.[pid] ?? ''}
+                                    onChange={(e) => modifierRepsPersonnalisee(i, pid, e.target.value)}
+                                    className="w-28 px-2 py-1 rounded-lg border"
+                                    style={{ borderColor: 'rgba(193,157,11,0.3)' }}
+                                  />
+                                  <span style={{ color: COLORS.textMedium }}>répétitions</span>
+                                </>
+                              ) : (
+                                <>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    placeholder={`défaut : ${p.duree}s`}
+                                    value={j.dureesPersonnalisees?.[pid] ?? ''}
+                                    onChange={(e) => modifierDureePersonnalisee(i, pid, e.target.value)}
+                                    className="w-24 px-2 py-1 rounded-lg border"
+                                    style={{ borderColor: 'rgba(193,157,11,0.3)' }}
+                                  />
+                                  <span style={{ color: COLORS.textMedium }}>secondes</span>
+                                </>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <div className="w-full mt-3">
                     <p className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: COLORS.textMedium }}>
-                      Postures de ce jour ({j.postures.length}) — laisser vide pour une génération aléatoire
+                      Ajouter/retirer des exercices ({j.postures.length} sélectionnés) — laisser vide pour une génération aléatoire
                     </p>
                     {i === 0 && (
                       <div className="mb-2">
@@ -3992,52 +4143,6 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
                       ))}
                     </div>
                   </div>
-                  {j.postures.length > 0 && (
-                    <div className="w-full mt-3">
-                      <p className="text-[10px] uppercase tracking-wide mb-1.5" style={{ color: COLORS.textMedium }}>
-                        Personnalisation pour ce jour (optionnel — ex. planche 20s au jour 1 → 5 min au jour 30, ou 30 répétitions au jour 1 → 400 au jour 30, sans dupliquer l'exercice)
-                      </p>
-                      <div className="flex flex-col gap-1.5">
-                        {j.postures.map((pid) => {
-                          const p = postures.find((x) => x.id === pid);
-                          if (!p) return null;
-                          const enModeRepetitions = p.modeCompletion === 'repetitions';
-                          return (
-                            <div key={pid} className="flex items-center gap-2 text-xs">
-                              <span style={{ color: COLORS.textDark, minWidth: '140px' }}>{p.icone} {p.nomFr}</span>
-                              {enModeRepetitions ? (
-                                <>
-                                  <span className="text-xs">🎯</span>
-                                  <input
-                                    type="text"
-                                    placeholder={`défaut : ${p.repetitionsRecommandees || '10-15'}`}
-                                    value={j.repsPersonnalisees?.[pid] ?? ''}
-                                    onChange={(e) => modifierRepsPersonnalisee(i, pid, e.target.value)}
-                                    className="w-28 px-2 py-1 rounded-lg border"
-                                    style={{ borderColor: 'rgba(193,157,11,0.3)' }}
-                                  />
-                                  <span style={{ color: COLORS.textMedium }}>répétitions</span>
-                                </>
-                              ) : (
-                                <>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    placeholder={`défaut : ${p.duree}s`}
-                                    value={j.dureesPersonnalisees?.[pid] ?? ''}
-                                    onChange={(e) => modifierDureePersonnalisee(i, pid, e.target.value)}
-                                    className="w-24 px-2 py-1 rounded-lg border"
-                                    style={{ borderColor: 'rgba(193,157,11,0.3)' }}
-                                  />
-                                  <span style={{ color: COLORS.textMedium }}>secondes</span>
-                                </>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -4061,6 +4166,9 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
               <p className="text-xs" style={{ color: COLORS.textMedium }}>{p.sousTitre} · {p.jours.length} jours</p>
             </div>
             <button onClick={() => editer(p)} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: 'rgba(193,157,11,0.15)', color: COLORS.secondary }}><Edit3 size={15} /></button>
+            <button onClick={() => genererNiveaux(p)} className="px-3 py-2 rounded-full text-xs whitespace-nowrap" style={{ background: 'rgba(193,157,11,0.15)', color: COLORS.secondary }} title="Créer automatiquement une version Novice (-50%) et Difficile (+50%)">
+              🎚️ 3 niveaux
+            </button>
             <button onClick={() => supprimer(p.id)} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: 'rgba(160,82,45,0.12)', color: COLORS.textAccent }}><Trash2 size={15} /></button>
           </div>
         ))}
