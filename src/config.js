@@ -18,7 +18,8 @@ export const CLIENT = {
 };
 
 /**
- * Logo de mondefisport — fichier réel dans public/logo-512.png
+ * Logo — placeholder simple en attendant un vrai logo client.
+ * Remplacer par le vrai logo en base64 une fois disponible.
  */
 export const LOGO_URL = '/logo-512.png';
 

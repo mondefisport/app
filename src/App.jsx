@@ -2376,18 +2376,21 @@ function SeanceEnCours({ seance, onClose, profil, postures, utilisateur, onTermi
   // Durée personnalisée par exercice, définie depuis l'admin pour ce jour de
   // programme précis (ex. planche 20s au jour 1, 5 min au jour 30) — sinon
   // on retombe sur la durée par défaut de l'exercice en base.
-  const dureeEffective = (p) => seance.dureesOverride?.[p.id] ?? p.duree;
-  const repsEffectif = (p) => seance.repsOverride?.[p.id] ?? p.repetitionsRecommandees ?? '10-15';
+  // Les surcharges (durée/répétitions personnalisées) sont indexées par
+  // POSITION dans le jour, pas par id d'exercice — ça permet d'avoir 2 séries
+  // du même exercice avec des objectifs différents (ex. 3 séries de pompes).
+  const dureeEffective = (idx) => seance.dureesOverride?.[idx] ?? posturesS[idx]?.duree;
+  const repsEffectif = (idx) => seance.repsOverride?.[idx] ?? posturesS[idx]?.repetitionsRecommandees ?? '10-15';
   const tempsReposParDefaut = Number(seance.tempsRepos) || 0;
   const [indexActuel, setIndexActuel] = useState(0);
-  const [tempsRestant, setTempsRestant] = useState(dureeEffective(posturesS[0]));
+  const [tempsRestant, setTempsRestant] = useState(dureeEffective(0));
   const [enPause, setEnPause] = useState(false);
   const [enRepos, setEnRepos] = useState(false);
   const [termine, setTermine] = useState(false);
   const intervalRef = useRef(null);
 
   useEffect(() => {
-    if (!enRepos) setTempsRestant(dureeEffective(posturesS[indexActuel]));
+    if (!enRepos) setTempsRestant(dureeEffective(indexActuel));
   }, [indexActuel]);
 
   useEffect(() => {
@@ -2402,7 +2405,7 @@ function SeanceEnCours({ seance, onClose, profil, postures, utilisateur, onTermi
             // Fin du repos -> on passe réellement à l'exercice suivant
             setEnRepos(false);
             setIndexActuel((i) => i + 1);
-            return dureeEffective(posturesS[indexActuel + 1]);
+            return dureeEffective(indexActuel + 1);
           }
           if (indexActuel < posturesS.length - 1) {
             if (tempsReposParDefaut > 0) {
@@ -2410,7 +2413,7 @@ function SeanceEnCours({ seance, onClose, profil, postures, utilisateur, onTermi
               return tempsReposParDefaut;
             }
             setIndexActuel((i) => i + 1);
-            return dureeEffective(posturesS[indexActuel + 1]);
+            return dureeEffective(indexActuel + 1);
           } else { setTermine(true); return 0; }
         }
         return t - 1;
@@ -2441,7 +2444,7 @@ function SeanceEnCours({ seance, onClose, profil, postures, utilisateur, onTermi
     ? ((tempsReposParDefaut - tempsRestant) / tempsReposParDefaut) * 100
     : postureActuelle.modeCompletion === 'repetitions'
       ? 0
-      : ((dureeEffective(postureActuelle) - tempsRestant) / dureeEffective(postureActuelle)) * 100;
+      : ((dureeEffective(indexActuel) - tempsRestant) / dureeEffective(indexActuel)) * 100;
   const postureSuivante = posturesS[indexActuel + 1];
   const estDerniere = indexActuel === posturesS.length - 1;
   const afficherApercu = tempsRestant <= 10 && tempsRestant > 0;
@@ -2560,7 +2563,7 @@ function SeanceEnCours({ seance, onClose, profil, postures, utilisateur, onTermi
     {postureActuelle.modeCompletion === 'repetitions' ? (
       <>
         <p className="font-display text-3xl mb-2" style={{ color: COLORS.textDark }}>
-          🎯 {repsEffectif(postureActuelle)} répétitions
+          🎯 {repsEffectif(indexActuel)} répétitions
         </p>
         <button
           onClick={passerSuivant}
@@ -3783,10 +3786,39 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
     jours[index] = { ...jours[index], [champ]: valeur };
     setForm({ ...form, jours });
   };
-  const toggleJourPosture = (index, pid) => {
+  // Ajoute toujours une nouvelle occurrence de l'exercice (permet plusieurs
+  // séries du même exercice dans un même jour, ex. 3 séries de pompes).
+  // Le retrait se fait uniquement via retirerOccurrence, sur une occurrence
+  // précise (pas un simple toggle qui retirerait la mauvaise série).
+  const ajouterPostureJour = (index, pid) => {
     const jours = [...form.jours];
-    const dejaChoisi = jours[index].postures.includes(pid);
-    jours[index] = { ...jours[index], postures: dejaChoisi ? jours[index].postures.filter((x) => x !== pid) : [...jours[index].postures, pid] };
+    jours[index] = { ...jours[index], postures: [...jours[index].postures, pid] };
+    setForm({ ...form, jours });
+  };
+
+  // Retire une occurrence précise par sa position dans le jour (pas par id,
+  // pour ne retirer que CETTE série et pas toutes les occurrences du même
+  // exercice). Décale aussi les overrides indexés pour rester cohérents.
+  const retirerOccurrence = (index, posInJour) => {
+    const jours = [...form.jours];
+    const j = jours[index];
+    const nouvellesPostures = j.postures.filter((_, idx) => idx !== posInJour);
+    const decaler = (map) => {
+      const nouveau = {};
+      Object.entries(map || {}).forEach(([k, v]) => {
+        const kNum = Number(k);
+        if (kNum < posInJour) nouveau[kNum] = v;
+        else if (kNum > posInJour) nouveau[kNum - 1] = v;
+        // kNum === posInJour : on l'oublie, c'est l'occurrence retirée
+      });
+      return nouveau;
+    };
+    jours[index] = {
+      ...j,
+      postures: nouvellesPostures,
+      dureesPersonnalisees: decaler(j.dureesPersonnalisees),
+      repsPersonnalisees: decaler(j.repsPersonnalisees),
+    };
     setForm({ ...form, jours });
   };
   // Durée personnalisée pour un exercice précis, un jour précis (ex. planche
@@ -3887,15 +3919,15 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
       const jours = programmeBase.jours.map((j) => {
         const dureesPersonnalisees = {};
         const repsPersonnalisees = {};
-        (j.postures || []).forEach((pid) => {
+        (j.postures || []).forEach((pid, posInJour) => {
           const p = postures.find((x) => x.id === pid);
           if (!p) return;
           if (modeDe(p) === 'repetitions') {
-            const base = j.repsPersonnalisees?.[pid] ?? p.repetitionsRecommandees ?? '10-15';
-            repsPersonnalisees[pid] = redimensionnerValeur(base, facteur);
+            const base = j.repsPersonnalisees?.[posInJour] ?? p.repetitionsRecommandees ?? '10-15';
+            repsPersonnalisees[posInJour] = redimensionnerValeur(base, facteur);
           } else {
-            const base = j.dureesPersonnalisees?.[pid] ?? p.duree;
-            dureesPersonnalisees[pid] = redimensionnerValeur(base, facteur);
+            const base = j.dureesPersonnalisees?.[posInJour] ?? p.duree;
+            dureesPersonnalisees[posInJour] = redimensionnerValeur(base, facteur);
           }
         });
         return {
@@ -4016,13 +4048,27 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
                         Personnalisation pour ce jour (optionnel — ex. planche 20s au jour 1 → 5 min au jour 30, ou 30 répétitions au jour 1 → 400 au jour 30, sans dupliquer l'exercice)
                       </p>
                       <div className="flex flex-col gap-1.5">
-                        {j.postures.map((pid) => {
+                        {j.postures.map((pid, posInJour) => {
                           const p = postures.find((x) => x.id === pid);
                           if (!p) return null;
                           const enModeRepetitions = modeDe(p) === 'repetitions';
+                          // Numéro de série affiché uniquement si l'exercice apparaît
+                          // plusieurs fois ce jour-là (ex. 3 séries de pompes).
+                          const occurrences = j.postures.filter((x) => x === pid).length;
+                          const numeroSerie = j.postures.slice(0, posInJour + 1).filter((x) => x === pid).length;
                           return (
-                            <div key={pid} className="flex items-center gap-2 text-xs flex-wrap">
-                              <span style={{ color: COLORS.textDark, minWidth: '140px' }}>{p.icone} {p.nomFr}</span>
+                            <div key={posInJour} className="flex items-center gap-2 text-xs flex-wrap">
+                              <span style={{ color: COLORS.textDark, minWidth: '140px' }}>
+                                {p.icone} {p.nomFr}{occurrences > 1 ? ` — série ${numeroSerie}` : ''}
+                              </span>
+                              <button
+                                onClick={() => retirerOccurrence(i, posInJour)}
+                                className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                                style={{ background: 'rgba(160,82,45,0.12)', color: COLORS.textAccent }}
+                                title="Retirer cette série"
+                              >
+                                <X size={11} />
+                              </button>
                               {/* Bascule mode temps/répétitions directement ici, sans changer d'onglet */}
                               <button
                                 onClick={() => changerModeExercice(p, enModeRepetitions ? 'temps' : 'repetitions')}
@@ -4038,8 +4084,8 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
                                   <input
                                     type="text"
                                     placeholder={`défaut : ${p.repetitionsRecommandees || '10-15'}`}
-                                    value={j.repsPersonnalisees?.[pid] ?? ''}
-                                    onChange={(e) => modifierRepsPersonnalisee(i, pid, e.target.value)}
+                                    value={j.repsPersonnalisees?.[posInJour] ?? ''}
+                                    onChange={(e) => modifierRepsPersonnalisee(i, posInJour, e.target.value)}
                                     className="w-28 px-2 py-1 rounded-lg border"
                                     style={{ borderColor: 'rgba(193,157,11,0.3)' }}
                                   />
@@ -4051,8 +4097,8 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
                                     type="number"
                                     min="1"
                                     placeholder={`défaut : ${p.duree}s`}
-                                    value={j.dureesPersonnalisees?.[pid] ?? ''}
-                                    onChange={(e) => modifierDureePersonnalisee(i, pid, e.target.value)}
+                                    value={j.dureesPersonnalisees?.[posInJour] ?? ''}
+                                    onChange={(e) => modifierDureePersonnalisee(i, posInJour, e.target.value)}
                                     className="w-24 px-2 py-1 rounded-lg border"
                                     style={{ borderColor: 'rgba(193,157,11,0.3)' }}
                                   />
@@ -4127,20 +4173,24 @@ function AdminProgrammes({ programmes, setProgrammes, postures }) {
                       </div>
                     )}
                     <div className="flex gap-1.5 flex-wrap">
-                      {posturesFiltrees.map((p) => (
-                        <button
-                          key={p.id}
-                          onClick={() => toggleJourPosture(i, p.id)}
-                          className="px-2 py-1 rounded-lg text-xs"
-                          style={{
-                            background: j.postures.includes(p.id) ? `linear-gradient(135deg, ${COLORS.primaryLight}, ${COLORS.primary})` : 'white',
-                            color: j.postures.includes(p.id) ? COLORS.backgroundCream : COLORS.textDark,
-                            border: '1px solid rgba(193,157,11,0.25)',
-                          }}
-                        >
-                          {p.icone} {p.nomFr}
-                        </button>
-                      ))}
+                      {posturesFiltrees.map((p) => {
+                        const nbDejaAjoute = j.postures.filter((x) => x === p.id).length;
+                        return (
+                          <button
+                            key={p.id}
+                            onClick={() => ajouterPostureJour(i, p.id)}
+                            className="px-2 py-1 rounded-lg text-xs"
+                            style={{
+                              background: nbDejaAjoute > 0 ? `linear-gradient(135deg, ${COLORS.primaryLight}, ${COLORS.primary})` : 'white',
+                              color: nbDejaAjoute > 0 ? COLORS.backgroundCream : COLORS.textDark,
+                              border: '1px solid rgba(193,157,11,0.25)',
+                            }}
+                            title="Cliquer plusieurs fois pour ajouter plusieurs séries du même exercice"
+                          >
+                            {p.icone} {p.nomFr}{nbDejaAjoute > 0 ? ` (${nbDejaAjoute}×)` : ''}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
